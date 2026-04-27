@@ -1,0 +1,17 @@
+node_modules
+.env
+.env.local
+.env.*.local
+dist
+build
+.DS_Store
+.claude/settings.local.json
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.next
+.vercel
+next-env.d.ts
+.turbo
+tsconfig.tsbuildinfo
+.gstack/

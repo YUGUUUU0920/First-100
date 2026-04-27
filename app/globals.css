@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DESIGN.md tokens exposed as CSS custom properties.
+ * Editing here requires updating DESIGN.md first.
+ * ─────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Color */
+  --bg: #fafaf8;
+  --fg: #0a0a0a;
+  --fg-muted: #4a4a48;
+  --fg-quiet: #8b8a86;
+  --rule: #e7e5e0;
+  --accent: #1d5a3a;
+  --accent-hover: #184a30;
+  --accent-fg: #ffffff;
+
+  /* Motion easing baseline */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast: 180ms;
+  --duration-base: 400ms;
+  --duration-slow: 600ms;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Respect reduced motion preferences globally (DESIGN.md §5 a11y rule). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus-visible outline per DESIGN.md §8 a11y. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Thin horizontal rule used for dividers in dashboard rows. */
+.rule {
+  border-top: 1px solid var(--rule);
+}

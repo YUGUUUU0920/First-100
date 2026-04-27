@@ -1,0 +1,1 @@
+/Users/yugugaode/.gstack/projects/CC_idea/yugugaode-main-design-20260422-153503.md
