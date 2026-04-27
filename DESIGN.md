@@ -162,7 +162,7 @@ font-family-chinese:  "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-ser
   │    ──────────             │
   │                          │
   │    First 100              │   ← 小 logo 右下
-  │    firstusers.dev         │   ← 小 URL
+  │    yourfirst100.co        │   ← 小 URL
   │                          │
   └──────────────────────────┘
      底：深森林绿 #1d5a3a 纯色。字：#fafaf8 白。

@@ -1,0 +1,26 @@
+# Supabase project config — used by `supabase` CLI for local dev + push.
+# Edit project_id below to match your linked project ref.
+
+project_id = "guqhsitwshirowcrqoua"
+
+[db]
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+
+[auth.email.template.magic_link]
+subject = "你的 First 100 登录链接"
+
+[storage]
+enabled = false  # v0 doesn't need storage yet (poster comes later)
