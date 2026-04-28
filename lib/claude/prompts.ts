@@ -2,13 +2,19 @@
  * Versioned prompt templates for Claude calls.
  *
  * When a prompt's wording changes meaningfully, BUMP its `*_VERSION` constant.
- * The version string is recorded in:
- *   - prospects.ai_filter_reason (filter outputs reference filter version)
- *   - outreach_events.features.generate_prompt_version (outreach gen version)
- * so future analysis can A/B prompts against historical data.
+ * The version string is recorded with each row so we can A/B prompts later:
+ *   - prospects.ai_filter_reason  → filter version
+ *   - outreaches.draft_v1 / draft_v2  → generate version (in critique_feedback)
+ *   - critique_score / critique_feedback  → critique version (in critique_feedback)
  */
 
 export const RELEVANCE_FILTER_VERSION = "filter-v1";
+export const OUTREACH_GENERATE_VERSION = "gen-v1";
+export const OUTREACH_CRITIQUE_VERSION = "critique-v1";
+
+// AI-味 critique threshold: drafts scoring below this get rewritten once.
+export const OUTREACH_CRITIQUE_THRESHOLD = 7;
+export const OUTREACH_MAX_CHARS = 280;
 
 export interface RelevanceFilterInput {
   productDescription: string;
@@ -65,6 +71,176 @@ export function buildRelevanceFilterMessage(input: RelevanceFilterInput) {
 export interface RelevanceFilterOutput {
   score: number;
   reason: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Outreach generation (Sonnet)
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface OutreachGenerationInput {
+  productDisplayName: string;
+  productDescription: string;
+  targetPersona: string;
+  postTitle: string | null;
+  postBody: string;
+  authorHandle: string;
+  // Optional rewrite instruction from critique pass.
+  critiqueFeedback?: string;
+  previousDraft?: string;
+}
+
+/**
+ * Builds Sonnet prompt for personalized Chinese outreach.
+ *
+ * Same caching strategy as filter: product context lives in `system` with
+ * cache_control. When generating outreach for 5+ prospects in one scan, the
+ * 80% input-token discount on cached system kicks in.
+ */
+export function buildOutreachGenerationMessage(input: OutreachGenerationInput) {
+  const {
+    productDisplayName,
+    productDescription,
+    targetPersona,
+    postTitle,
+    postBody,
+    authorHandle,
+    critiqueFeedback,
+    previousDraft,
+  } = input;
+
+  const titleLine = postTitle ? `标题：${postTitle}\n` : "";
+
+  const systemInstruction = [
+    "你是一名中文 indie hacker 营销文案。",
+    "我会给你一段产品描述，和一条社区帖子（V2EX 或即刻）。",
+    "你的任务：为帖子作者写一条**中文破冰回复**，让 ta 看到时点开了解我的产品。",
+    "",
+    "硬约束：",
+    `  - ≤ ${OUTREACH_MAX_CHARS} 字`,
+    "  - 必须引用帖子里至少一个具体细节（不能泛泛而谈）",
+    "  - 不强行嵌入产品链接 / 二维码（提到产品名即可）",
+    "  - 不用 AI 万金油词：「赋能」「打造」「全方位」「生态」「闭环」「赛道」",
+    "  - 写得像真实 indie 在留言，不是销售机器人",
+    "  - 用中文社区的对话感（直接、不啰嗦、自嘲 OK）",
+    "  - 不要开头说「您好」或「老哥您好」之类客套",
+    "",
+    "只回 JSON，不要 markdown，不要前后文字：",
+    `{"draft": "<回复文本>", "rationale": "<一句话解释你为什么这么写>"}`,
+  ].join("\n");
+
+  const productContext = [
+    `产品名：${productDisplayName}`,
+    `产品描述：${productDescription}`,
+    `目标用户画像：${targetPersona || "（未填）"}`,
+  ].join("\n");
+
+  const userParts = [
+    `作者：@${authorHandle}`,
+    "帖子：",
+    titleLine + postBody,
+  ];
+  if (critiqueFeedback && previousDraft) {
+    userParts.push(
+      "",
+      "你的上一稿：",
+      previousDraft,
+      "",
+      "评审反馈（按这个改）：",
+      critiqueFeedback
+    );
+  }
+
+  return {
+    system: [
+      { type: "text" as const, text: systemInstruction },
+      {
+        type: "text" as const,
+        text: productContext,
+        cache_control: { type: "ephemeral" as const },
+      },
+    ],
+    messages: [{ role: "user" as const, content: userParts.join("\n") }],
+  };
+}
+
+export interface OutreachGenerationOutput {
+  draft: string;
+  rationale: string;
+}
+
+export function parseOutreachGenerationOutput(raw: string): OutreachGenerationOutput | null {
+  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  try {
+    const parsed = JSON.parse(stripped) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "draft" in parsed &&
+      typeof (parsed as { draft: unknown }).draft === "string"
+    ) {
+      const { draft, rationale } = parsed as { draft: string; rationale?: unknown };
+      return {
+        draft: draft.trim(),
+        rationale: typeof rationale === "string" ? rationale : "",
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// AI-味 critique (Haiku)
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface OutreachCritiqueInput {
+  draft: string;
+}
+
+export function buildOutreachCritiqueMessage(input: OutreachCritiqueInput) {
+  const systemInstruction = [
+    "你是一个中文 AI 味检测员。我会给你一条 indie hacker 写给潜在用户的破冰回复。",
+    "请打分 0-10：",
+    "  10 = 完全像真实 indie 写的，看不出 AI",
+    "  7-9 = 基本自然，有 1-2 处轻微 AI 味",
+    "  4-6 = 明显 AI 痕迹（套话、过分客气、冗长、转折太多）",
+    "  0-3 = 重度 AI 味（「赋能」「打造」「全方位」「生态」一类词）",
+    "",
+    "只回 JSON：",
+    `{"score": <0-10 数字>, "feedback": "<一句话指出哪里像 AI 味，给一个改写方向>"}`,
+  ].join("\n");
+
+  return {
+    system: systemInstruction,
+    messages: [{ role: "user" as const, content: `回复草稿：\n${input.draft}` }],
+  };
+}
+
+export interface OutreachCritiqueOutput {
+  score: number;
+  feedback: string;
+}
+
+export function parseOutreachCritiqueOutput(raw: string): OutreachCritiqueOutput | null {
+  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+  try {
+    const parsed = JSON.parse(stripped) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "score" in parsed &&
+      "feedback" in parsed &&
+      typeof (parsed as { score: unknown }).score === "number" &&
+      typeof (parsed as { feedback: unknown }).feedback === "string"
+    ) {
+      const { score, feedback } = parsed as { score: number; feedback: string };
+      return { score: Math.max(0, Math.min(10, score)), feedback };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**

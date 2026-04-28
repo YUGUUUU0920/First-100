@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getClaude } from "@/lib/claude";
 import { scoreRelevance } from "@/lib/claude/filter";
+import { generateOutreachWithCritique } from "@/lib/claude/generate";
 import { ageDays, fetchNodeTopics, V2EXError } from "@/lib/v2ex";
 
 /**
@@ -35,9 +36,11 @@ const scanRequestSchema = z.object({
   min_score: z.number().min(0).max(10).default(6),
 });
 
-// Haiku 4.5 pricing (USD per million tokens). Approximate; refine with real bills.
+// Pricing (USD per million tokens). Approximate; refine with real bills.
 const HAIKU_INPUT_USD_PER_MTOK = 1.0;
 const HAIKU_OUTPUT_USD_PER_MTOK = 5.0;
+const SONNET_INPUT_USD_PER_MTOK = 3.0;
+const SONNET_OUTPUT_USD_PER_MTOK = 15.0;
 
 export async function POST(request: NextRequest) {
   // 1. Auth via user cookie client.
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   const { data: product, error: productErr } = await admin
     .from("products")
-    .select("id, user_id, description, target_persona")
+    .select("id, user_id, display_name, description, target_persona")
     .eq("id", product_id)
     .single();
   if (productErr || !product || product.user_id !== user.id) {
@@ -195,31 +198,136 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // 7. Insert prospects (one batch).
+  // 7. Insert prospects (one batch). Need IDs back for outreach generation.
   let inserted = 0;
+  let insertedProspects: Array<{
+    id: string;
+    post_title: string | null;
+    post_body: string;
+    author_handle: string;
+  }> = [];
   if (prospectRows.length > 0) {
-    const { error: insertErr } = await admin.from("prospects").insert(prospectRows);
-    if (insertErr) {
+    const { data: insertedRows, error: insertErr } = await admin
+      .from("prospects")
+      .insert(prospectRows)
+      .select("id, post_title, post_body, author_handle");
+    if (insertErr || !insertedRows) {
       await admin
         .from("scans")
         .update({
           finished_at: new Date().toISOString(),
-          error_message: `prospect insert: ${insertErr.message}`,
+          error_message: `prospect insert: ${insertErr?.message ?? "no data"}`,
         })
         .eq("id", scanId);
       return NextResponse.json(
-        { error: { code: "db_error", message: insertErr.message }, scan_id: scanId },
+        { error: { code: "db_error", message: insertErr?.message ?? "insert failed" }, scan_id: scanId },
         { status: 500 }
       );
     }
-    inserted = prospectRows.length;
+    inserted = insertedRows.length;
+    insertedProspects = insertedRows;
   }
 
-  const costUSD =
+  // 8. For each kept prospect, generate Sonnet outreach + Haiku critique
+  //    (parallel). One Haiku failure or unparseable output marks just that
+  //    outreach as ai_failed; the rest still land.
+  let sonnetIn = 0;
+  let sonnetOut = 0;
+  let haikuCritIn = 0;
+  let haikuCritOut = 0;
+  let outreachFailed = 0;
+
+  if (insertedProspects.length > 0) {
+    const outreachResults = await Promise.all(
+      insertedProspects.map((p) =>
+        generateOutreachWithCritique(claude, {
+          productDisplayName: product.display_name,
+          productDescription: product.description,
+          targetPersona: product.target_persona,
+          postTitle: p.post_title,
+          postBody: p.post_body,
+          authorHandle: p.author_handle,
+        }).then((outcome) => ({ prospect: p, outcome }))
+      )
+    );
+
+    type OutreachInsert = {
+      prospect_id: string;
+      user_id: string;
+      draft_v1: string;
+      critique_score: number | null;
+      critique_feedback: string | null;
+      draft_v2: string | null;
+      final_chosen: string | null;
+      char_count: number;
+      sonnet_tokens: number;
+      haiku_tokens: number;
+      status: "ok" | "ai_failed" | "pending";
+    };
+    const outreachRows: OutreachInsert[] = [];
+
+    for (const { prospect, outcome } of outreachResults) {
+      if (!outcome.ok) {
+        outreachFailed += 1;
+        outreachRows.push({
+          prospect_id: prospect.id,
+          user_id: user.id,
+          draft_v1: "",
+          critique_score: null,
+          critique_feedback: `[${outcome.generate_version}] ${outcome.reason}: ${outcome.detail}`,
+          draft_v2: null,
+          final_chosen: null,
+          char_count: 0,
+          sonnet_tokens: 0,
+          haiku_tokens: 0,
+          status: "ai_failed",
+        });
+        continue;
+      }
+      sonnetIn += outcome.sonnet_input_tokens;
+      sonnetOut += outcome.sonnet_output_tokens;
+      haikuCritIn += outcome.haiku_input_tokens;
+      haikuCritOut += outcome.haiku_output_tokens;
+
+      outreachRows.push({
+        prospect_id: prospect.id,
+        user_id: user.id,
+        draft_v1: outcome.draft_v1,
+        critique_score: outcome.critique_score,
+        critique_feedback: `[${outcome.generate_version}|${outcome.critique_version}] ${outcome.critique_feedback}`,
+        draft_v2: outcome.draft_v2,
+        final_chosen: outcome.final_chosen,
+        char_count: outcome.final_chosen.length,
+        sonnet_tokens: outcome.sonnet_input_tokens + outcome.sonnet_output_tokens,
+        haiku_tokens: outcome.haiku_input_tokens + outcome.haiku_output_tokens,
+        status: "ok",
+      });
+    }
+
+    if (outreachRows.length > 0) {
+      const { error: outreachInsertErr } = await admin.from("outreaches").insert(outreachRows);
+      if (outreachInsertErr) {
+        // Don't fail the whole scan — prospects are saved. Log via scan.error_message.
+        await admin
+          .from("scans")
+          .update({ error_message: `outreach insert: ${outreachInsertErr.message}` })
+          .eq("id", scanId);
+      }
+    }
+  }
+
+  // 9. Cost rollup + scan completion.
+  const filterCostUSD =
     (totalInputTokens * HAIKU_INPUT_USD_PER_MTOK +
       totalOutputTokens * HAIKU_OUTPUT_USD_PER_MTOK) /
     1_000_000;
-  const costCents = Math.ceil(costUSD * 100);
+  const sonnetCostUSD =
+    (sonnetIn * SONNET_INPUT_USD_PER_MTOK + sonnetOut * SONNET_OUTPUT_USD_PER_MTOK) /
+    1_000_000;
+  const critiqueCostUSD =
+    (haikuCritIn * HAIKU_INPUT_USD_PER_MTOK + haikuCritOut * HAIKU_OUTPUT_USD_PER_MTOK) /
+    1_000_000;
+  const costCents = Math.ceil((filterCostUSD + sonnetCostUSD + critiqueCostUSD) * 100);
 
   await admin
     .from("scans")
@@ -234,8 +342,13 @@ export async function POST(request: NextRequest) {
     scan_id: scanId,
     scanned: topics.length,
     kept: inserted,
-    ai_failed: aiFailed,
+    ai_failed_filter: aiFailed,
+    ai_failed_outreach: outreachFailed,
     cost_cents: costCents,
-    haiku_tokens: { input: totalInputTokens, output: totalOutputTokens },
+    tokens: {
+      filter: { input: totalInputTokens, output: totalOutputTokens },
+      sonnet: { input: sonnetIn, output: sonnetOut },
+      critique: { input: haikuCritIn, output: haikuCritOut },
+    },
   });
 }

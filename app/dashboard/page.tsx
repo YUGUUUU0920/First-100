@@ -4,10 +4,13 @@ import { Nav } from "@/components/ui/Nav";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Product, Prospect } from "@/lib/supabase/types";
-import { ProspectList } from "./_prospect-list";
+import type { Product } from "@/lib/supabase/types";
+import { JikePasteForm } from "./_jike-paste-form";
+import { ProspectList, type ProspectWithOutreach } from "./_prospect-list";
 import { ScanForm } from "./_scan-form";
 import { SignOutButton } from "./_signout-button";
+import { ThisWeek } from "./_this-week";
+import { getStreakWeeks, getWeeklyStats } from "@/lib/weekly-stats";
 
 // Reads cookies + DB on every request — never prerender.
 export const dynamic = "force-dynamic";
@@ -43,14 +46,23 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
   const activeProduct =
     (requestedId ? products.find((p) => p.id === requestedId) : null) ?? products[0]!;
 
+  // Pull prospects + outreach (1:1) + outreach_events (many).  outreaches is
+  // left-joined so a prospect with no outreach (e.g., legacy scan before gen
+  // pipeline) still shows up.
   const { data: prospects, error: prospectsErr } = await admin
     .from("prospects")
-    .select("*, scans!inner(product_id)")
+    .select("*, scans!inner(product_id), outreaches(*, outreach_events(*))")
     .eq("user_id", user.id)
     .eq("scans.product_id", activeProduct.id)
     .order("ai_relevance_score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(50);
+
+  // Weekly stats + streak — feeds the "本周" panel and the poster generator.
+  const [weeklyStats, streak] = await Promise.all([
+    getWeeklyStats(admin, user.id),
+    getStreakWeeks(admin, user.id),
+  ]);
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -60,18 +72,22 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
           userEmail={user.email ?? ""}
           activeProduct={activeProduct}
           allProducts={products}
+          streak={streak}
         />
 
-        <ThisWeekStub />
+        <ThisWeek stats={weeklyStats} streak={streak} />
 
         <ScanForm productId={activeProduct.id} />
+        <JikePasteForm productId={activeProduct.id} />
 
         {prospectsErr ? (
           <p className="mt-32 text-sub text-fg" role="alert">
             读取 prospects 出错：{prospectsErr.message}
           </p>
         ) : (
-          <ProspectList prospects={(prospects ?? []) as unknown as Prospect[]} />
+          <ProspectList
+            prospects={(prospects ?? []) as unknown as ProspectWithOutreach[]}
+          />
         )}
       </section>
     </main>
@@ -82,10 +98,12 @@ function DashboardHeader({
   userEmail,
   activeProduct,
   allProducts,
+  streak,
 }: {
   userEmail: string;
   activeProduct: Product;
   allProducts: Product[];
+  streak: number;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-24">
@@ -93,7 +111,10 @@ function DashboardHeader({
         <h1 className="text-h1 lg:text-h1-lg font-bold text-fg truncate">
           {activeProduct.display_name}
         </h1>
-        <p className="mt-12 text-meta text-fg-quiet">登录身份：{userEmail}</p>
+        <p className="mt-12 text-meta text-fg-quiet">
+          登录身份：{userEmail}
+          {streak > 0 && <> · 🟢 已连续 {streak} 周发出 outreach</>}
+        </p>
         {allProducts.length > 1 && (
           <p className="mt-12 text-meta text-fg-quiet">
             切换产品：
@@ -121,18 +142,6 @@ function DashboardHeader({
         </p>
       </div>
       <SignOutButton />
-    </div>
-  );
-}
-
-function ThisWeekStub() {
-  // Streak + weekly stats land with the outreach_events slice (next chunk after 1e).
-  return (
-    <div className="rule pt-32 mt-48">
-      <h2 className="text-h2 font-semibold text-fg">本周</h2>
-      <p className="mt-12 text-body text-fg-muted">
-        还没开始。等 outreach 生成 + 标记按钮上线后，这里显示发了 / 回了 / 转化数。
-      </p>
     </div>
   );
 }
