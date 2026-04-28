@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 
@@ -35,9 +36,9 @@ export function Hero() {
       </motion.p>
 
       <motion.div {...fadeUp(280)} className="mt-48 lg:mt-64">
-        <Button variant="primary" aria-label="开始免费内测">
-          免费内测
-        </Button>
+        <Link href="/login" aria-label="开始免费内测">
+          <Button variant="primary">免费内测</Button>
+        </Link>
       </motion.div>
 
       <motion.p

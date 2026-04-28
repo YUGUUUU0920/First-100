@@ -42,9 +42,11 @@ export async function updateSession(request: NextRequest) {
   // out unexpectedly.
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Protected routes: any path under /dashboard requires a logged-in user.
+  // Protected routes: any path under these prefixes requires a logged-in user.
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/dashboard") && !user) {
+  const protectedPrefixes = ["/dashboard", "/products"];
+  const isProtected = protectedPrefixes.some((p) => path === p || path.startsWith(`${p}/`));
+  if (isProtected && !user) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/login";
     redirect.searchParams.set("next", path);

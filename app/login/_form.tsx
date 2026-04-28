@@ -15,6 +15,9 @@ export function LoginForm() {
   );
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
+  const rawNext = searchParams.get("next") ?? "";
+  // Same allowlist as the server action: must be a relative path, not protocol-relative.
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
   const reduce = useReducedMotion();
   const ease = [0.25, 0.1, 0.25, 1] as const;
   const fadeUp = (delayMs: number) => ({
@@ -58,6 +61,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="w-full max-w-headline text-center">
+      {next && <input type="hidden" name="next" value={next} />}
       <motion.h1
         {...fadeUp(0)}
         className="text-h1 lg:text-h1-lg font-bold text-fg"

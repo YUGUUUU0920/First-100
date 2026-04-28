@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_SC } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const notoSansSC = Noto_Sans_SC({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-noto-sans-sc",
-  display: "swap",
-  preload: false,
-});
+/**
+ * Fonts: relying on the OS-installed CJK stack defined in tailwind.config.ts
+ * (PingFang SC on macOS, Microsoft YaHei on Windows, system-ui fallback).
+ *
+ * We deliberately do NOT load Inter / Noto Sans SC from Google Fonts because
+ * fonts.googleapis.com is unreachable from China-mainland networks without a
+ * proxy, which made every dev page hang for 30+ seconds on font-fetch retries.
+ *
+ * If we want the exact Noto Sans SC look in production, swap in a self-hosted
+ * `@next/font/local` config or a China-friendly mirror (e.g., bunny.net).
+ */
 
 export const metadata: Metadata = {
   title: "First 100 — 你的前 100 个用户，值得你亲手拿下",
@@ -34,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN" className={`${inter.variable} ${notoSansSC.variable}`}>
+    <html lang="zh-CN">
       <body className="font-sans text-body text-fg bg-bg antialiased">
         {children}
       </body>

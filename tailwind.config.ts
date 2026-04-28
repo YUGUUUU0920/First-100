@@ -25,16 +25,25 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Chinese-first stack per DESIGN.md
+        // Chinese-first system stack — see app/layout.tsx for why we don't
+        // load Google Fonts. Order: macOS → Windows → generic fallback.
         sans: [
-          "var(--font-noto-sans-sc)",
-          "var(--font-inter)",
           "PingFang SC",
           "Microsoft YaHei",
+          "Hiragino Sans GB",
+          "ui-sans-serif",
           "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
           "sans-serif",
         ],
-        latin: ["var(--font-inter)", "system-ui", "sans-serif"],
+        latin: [
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "sans-serif",
+        ],
       },
       fontSize: {
         // Mobile-first sizes; desktop bumps via responsive prefix

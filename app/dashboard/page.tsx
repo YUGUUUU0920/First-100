@@ -1,46 +1,162 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { Nav } from "@/components/ui/Nav";
+import { Button } from "@/components/ui/Button";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Product, Prospect } from "@/lib/supabase/types";
+import { ProspectList } from "./_prospect-list";
+import { ScanForm } from "./_scan-form";
 import { SignOutButton } from "./_signout-button";
 
-/**
- * Dashboard — protected by middleware.ts.
- * v0 stub: shows logged-in email + sign out. Prospect list comes in Lane A.
- */
-export default async function Dashboard() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+// Reads cookies + DB on every request — never prerender.
+export const dynamic = "force-dynamic";
 
-  // middleware should have already redirected, but defense-in-depth.
-  if (!user) redirect("/login");
+interface DashboardSearchParams {
+  searchParams: Promise<{ product?: string }>;
+}
+
+export default async function Dashboard({ searchParams }: DashboardSearchParams) {
+  // Auth: trust the user-cookie client (well-tested by Supabase Auth).
+  const userClient = await createClient();
+  const {
+    data: { user },
+  } = await userClient.auth.getUser();
+  if (!user) redirect("/login?next=/dashboard");
+
+  // Reads via admin client + manual user_id filter — sidesteps the JWT-forwarding
+  // RLS gap in @supabase/ssr 0.10. See lib/supabase/admin.ts for context.
+  const admin = createAdminClient();
+
+  const { data: products } = await admin
+    .from("products")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (!products || products.length === 0) {
+    return <NoProductsState userEmail={user.email ?? ""} />;
+  }
+
+  const sp = await searchParams;
+  const requestedId = sp.product;
+  const activeProduct =
+    (requestedId ? products.find((p) => p.id === requestedId) : null) ?? products[0]!;
+
+  const { data: prospects, error: prospectsErr } = await admin
+    .from("prospects")
+    .select("*, scans!inner(product_id)")
+    .eq("user_id", user.id)
+    .eq("scans.product_id", activeProduct.id)
+    .order("ai_relevance_score", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   return (
     <main className="min-h-screen flex flex-col">
       <Nav />
       <section className="flex-1 max-w-app mx-auto w-full px-24 lg:px-32 py-64 lg:py-96">
-        <div className="flex items-baseline justify-between mb-48">
-          <div>
-            <h1 className="text-h1 lg:text-h1-lg font-bold text-fg">
-              欢迎回来
-            </h1>
-            <p className="mt-12 text-body text-fg-muted">
-              登录身份：<span className="text-fg">{user.email}</span>
-            </p>
-          </div>
-          <SignOutButton />
-        </div>
+        <DashboardHeader
+          userEmail={user.email ?? ""}
+          activeProduct={activeProduct}
+          allProducts={products}
+        />
 
-        <div className="rule pt-48">
-          <h2 className="text-h2 font-semibold text-fg">本周</h2>
+        <ThisWeekStub />
+
+        <ScanForm productId={activeProduct.id} />
+
+        {prospectsErr ? (
+          <p className="mt-32 text-sub text-fg" role="alert">
+            读取 prospects 出错：{prospectsErr.message}
+          </p>
+        ) : (
+          <ProspectList prospects={(prospects ?? []) as unknown as Prospect[]} />
+        )}
+      </section>
+    </main>
+  );
+}
+
+function DashboardHeader({
+  userEmail,
+  activeProduct,
+  allProducts,
+}: {
+  userEmail: string;
+  activeProduct: Product;
+  allProducts: Product[];
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-24">
+      <div className="min-w-0">
+        <h1 className="text-h1 lg:text-h1-lg font-bold text-fg truncate">
+          {activeProduct.display_name}
+        </h1>
+        <p className="mt-12 text-meta text-fg-quiet">登录身份：{userEmail}</p>
+        {allProducts.length > 1 && (
+          <p className="mt-12 text-meta text-fg-quiet">
+            切换产品：
+            {allProducts.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 && " · "}
+                {p.id === activeProduct.id ? (
+                  <span className="text-fg">{p.display_name}</span>
+                ) : (
+                  <Link
+                    href={`/dashboard?product=${p.id}`}
+                    className="text-fg-muted hover:text-fg underline-offset-4 hover:underline"
+                  >
+                    {p.display_name}
+                  </Link>
+                )}
+              </span>
+            ))}
+          </p>
+        )}
+        <p className="mt-8 text-meta text-fg-quiet">
+          <Link href="/products/new" className="hover:text-fg underline-offset-4 hover:underline">
+            + 加一个产品
+          </Link>
+        </p>
+      </div>
+      <SignOutButton />
+    </div>
+  );
+}
+
+function ThisWeekStub() {
+  // Streak + weekly stats land with the outreach_events slice (next chunk after 1e).
+  return (
+    <div className="rule pt-32 mt-48">
+      <h2 className="text-h2 font-semibold text-fg">本周</h2>
+      <p className="mt-12 text-body text-fg-muted">
+        还没开始。等 outreach 生成 + 标记按钮上线后，这里显示发了 / 回了 / 转化数。
+      </p>
+    </div>
+  );
+}
+
+function NoProductsState({ userEmail }: { userEmail: string }) {
+  return (
+    <main className="min-h-screen flex flex-col">
+      <Nav />
+      <section className="flex-1 flex items-center justify-center px-24 py-96">
+        <div className="text-center max-w-prose">
+          <h1 className="text-h1 lg:text-h1-lg font-bold text-fg">
+            先告诉我你做的是什么
+          </h1>
+          <p className="mt-24 text-body text-fg-muted">
+            登录身份：{userEmail}
+          </p>
           <p className="mt-16 text-body text-fg-muted">
-            还没开始。Lane A 上线后这里会显示你的 outreach 战绩 + 本周 prospects。
+            创建一个产品后，AI 才能知道哪些 V2EX / 即刻帖子的作者可能是你的潜在用户。
           </p>
-        </div>
-
-        <div className="mt-64 rule pt-48">
-          <p className="text-meta text-fg-quiet">
-            v0 dev — 登录闭环已通。下一步：Lane A（V2EX scan + 即刻粘贴 + Claude 破冰生成）。
-          </p>
+          <div className="mt-48 flex justify-center">
+            <Link href="/products/new">
+              <Button variant="primary">创建产品</Button>
+            </Link>
+          </div>
         </div>
       </section>
     </main>

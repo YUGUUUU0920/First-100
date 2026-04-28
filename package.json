@@ -4,19 +4,20 @@
   "private": true,
   "description": "AI-native 用户获取助手 for Chinese indie makers",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next dev",
+    "build": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next build",
+    "start": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.105.0",
+    "framer-motion": "^12.0.0",
     "next": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.47.0",
-    "@supabase/ssr": "^0.5.2",
-    "framer-motion": "^12.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

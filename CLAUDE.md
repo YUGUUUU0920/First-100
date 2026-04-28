@@ -1,8 +1,8 @@
 # First 100
 
-**产品定位：**AI-native 用户获取助手 for indies。输入产品描述 → 5 分钟出 50 个潜在用户 + 个性化破冰建议。Reddit + Twitter 起步，indie-friendly 定价（$19/月）。
+**产品定位：**AI-native 用户获取助手 for **中文** indie hacker。输入产品描述 → 5 分钟出 30-60 个潜在用户 + 个性化中文破冰建议。**v0 = V2EX + 即刻**（粘贴），免费 beta。
 
-**核心闭环：** 用户填表（产品描述 + 目标画像 + 平台勾选） → AI 扫 Reddit/Twitter 过去 30 天 → 相关性过滤（Claude Haiku） → 个性化破冰生成（Claude Sonnet） → 用户复制粘贴发送 → 追踪转化
+**核心闭环：** 用户填表（产品描述 + 目标画像） → AI 扫 V2EX 节点 + 用户粘即刻帖子 → 相关性过滤（Claude Haiku） → 个性化中文破冰（Claude Sonnet） → 用户复制粘贴发送 → 用户手动标 sent/replied/converted
 
 **核心原则（不可违反）：**
 - **人在 loop 中是 feature 不是 bug。** v0 不做自动发送。最后的发送按钮必须是人按。理由：(a) 平台 ban 防御，(b) 保留 personality，(c) 逼用户真的与用户对话
@@ -10,6 +10,30 @@
 - **Founder 是 User #1。**如果 founder 自己不每周用这个工具拉用户，产品死
 
 **设计文档：** 在 `~/.gstack/projects/CC_idea/` 下。`/office-hours` 产出的 DRAFT。本项目初始化时软链接到了 `docs/design/`（见下）。
+
+---
+
+## Git worktree 注意事项（重要 — 防止 env 配置坑）
+
+本项目经常被 Claude Code 在 git worktree 里编辑（`.claude/worktrees/<name>/`）。worktree 和主仓**各自有独立的工作目录**，意味着：
+
+- `.env.local` **必须**在 worktree 里软链到主仓：`ln -s ../../../.env.local .env.local`
+  （已在 `next.config.ts` 里设置 `outputFileTracingRoot` 强制 workspace root，否则 Next.js 会因为多个 lockfile 把主仓当成 root，加载错的 .env.local 文件）
+- `node_modules` 各自独立，新建 worktree 后跑一次 `bun install`
+- `bun.lock` 是 git tracked 的，自动同步
+
+**新 worktree 启动 dev server 之前必做：**
+```bash
+ln -sf ../../../.env.local .env.local && bun install
+```
+
+## Env 加载顺序坑（已防御）
+
+Claude Code CLI 会在 shell 里 export `ANTHROPIC_API_KEY=`（空字符串）+ `ANTHROPIC_BASE_URL`。Bun / Next.js 加载 `.env.local` 时**不会覆盖已存在的 env 变量**，所以这俩 shell 变量会屏蔽 `.env.local` 里的真值，导致 Anthropic 调用都报"key 不存在"。
+
+**已防御**：`package.json` 的 `dev`/`build`/`start` 脚本前面都加了 `unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL`，跑 `bun run dev` 自动清掉。
+
+**症状记忆点**：如果 Claude API 调用失败，且 `.env.local` 里的 key 看起来正确，**先检查 shell 环境**：`echo "len: ${#ANTHROPIC_API_KEY}"`。如果是 0 但又有这个变量名，就是被 shell 屏蔽了。
 
 ---
 

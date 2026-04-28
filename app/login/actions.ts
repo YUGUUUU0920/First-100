@@ -9,17 +9,32 @@ const emailSchema = z
   .min(1, "请输入邮箱")
   .email("邮箱格式不对");
 
+const nextSchema = z
+  .string()
+  .startsWith("/", "non-relative redirect")
+  .refine((s) => !s.startsWith("//"), "non-relative redirect");
+
 export type LoginState =
   | { status: "idle" }
   | { status: "ok"; email: string }
   | { status: "error"; message: string };
 
+function getSiteUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!url) {
+    throw new Error(
+      "NEXT_PUBLIC_SITE_URL is not set. Magic links would point to the wrong host."
+    );
+  }
+  return url.replace(/\/$/, "");
+}
+
 /**
  * Sends a Supabase magic link to the user's email.
- * Triggered by the login form (client component) via React 19 useActionState.
  *
  * Supabase auto-creates the user if they don't exist (signup = login for v0).
- * The magic link redirects to /auth/callback (configured in Supabase URL Configuration).
+ * The magic link redirects to /auth/callback?next=<original-destination> so we
+ * can return the user to the page they were trying to reach before login.
  */
 export async function sendMagicLink(
   _prev: LoginState,
@@ -36,20 +51,23 @@ export async function sendMagicLink(
   }
   const email = parsed.data;
 
+  const rawNext = formData.get("next");
+  const nextParsed = typeof rawNext === "string" ? nextSchema.safeParse(rawNext) : null;
+  const next = nextParsed?.success ? nextParsed.data : "/dashboard";
+
+  const callback = new URL(`${getSiteUrl()}/auth/callback`);
+  callback.searchParams.set("next", next);
+
   const supabase = await createClient();
-  // The redirectTo must match an entry in Supabase URL Configuration.
-  // In dev: http://localhost:3000/auth/callback. In prod: set NEXT_PUBLIC_SITE_URL.
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/callback`,
+      emailRedirectTo: callback.toString(),
       shouldCreateUser: true,
     },
   });
 
   if (error) {
-    // Common: rate limit (4/hour per email by default), invalid email, SMTP misconfig
     return {
       status: "error",
       message: error.message.includes("rate limit")
