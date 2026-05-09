@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 /**
@@ -17,12 +17,41 @@ export const metadata: Metadata = {
   title: "First 100 — 你的前 100 个用户，值得你亲手拿下",
   description:
     "AI-native 用户获取助手 for Chinese indie makers. 即刻 + V2EX 一次扫描，AI 写个性化中文破冰，你自己按发送。",
+  applicationName: "First 100",
+  keywords: ["indie hacker", "冷启动", "用户获取", "中文 SaaS", "AI 营销"],
+  authors: [{ name: "First 100" }],
+  creator: "First 100",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  ),
   openGraph: {
-    title: "First 100",
-    description: "你的前 100 个用户，值得你亲手拿下。",
+    title: "First 100 — 你的前 100 个用户，值得你亲手拿下",
+    description:
+      "5 分钟扫 V2EX + 即刻，AI 写个性化中文破冰。你按发送。一周一次复盘。",
     locale: "zh_CN",
     type: "website",
+    siteName: "First 100",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "First 100",
+    description: "你的前 100 个用户，值得你亲手拿下。",
+  },
+  // Once we have favicon assets in /public, Next.js auto-discovers favicon.ico
+  // and apple-icon.png from /app or /public. /app/icon.tsx supersedes those.
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafaf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#1d5a3a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -33,6 +62,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="font-sans text-body text-fg bg-bg antialiased">
+        {/* Skip link — keyboard users tab once at top of page to jump past the
+            nav. Visible only when focused (.skip-link styles in globals.css). */}
+        <a href="#main" className="skip-link">
+          跳到主内容
+        </a>
         {children}
       </body>
     </html>

@@ -65,7 +65,7 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
   ]);
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main" className="min-h-screen flex flex-col">
       <Nav />
       <section className="flex-1 max-w-app mx-auto w-full px-24 lg:px-32 py-64 lg:py-96">
         <DashboardHeader
@@ -148,7 +148,7 @@ function DashboardHeader({
 
 function NoProductsState({ userEmail }: { userEmail: string }) {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main" className="min-h-screen flex flex-col">
       <Nav />
       <section className="flex-1 flex items-center justify-center px-24 py-96">
         <div className="text-center max-w-prose">

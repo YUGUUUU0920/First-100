@@ -68,7 +68,7 @@ function ProspectRow({ prospect }: { prospect: ProspectWithOutreach }) {
         >
           {prospect.post_title ?? "(无标题)"}
         </a>
-        <p className="mt-4 text-meta text-fg-quiet">
+        <p className="mt-4 text-meta text-fg-quiet tabular-nums">
           @{prospect.author_handle}
           {typeof prospect.post_age_days === "number" && (
             <> · {prospect.post_age_days} 天前</>
@@ -112,9 +112,13 @@ function OutreachBlock({ outreach }: { outreach: OutreachWithEvents | undefined 
     outreach.final_chosen === outreach.draft_v2;
 
   return (
-    <div className="mt-16 border border-rule rounded-md p-16 bg-bg">
+    // card-soft = 1px hairline shadow instead of generic border outline.
+    // Pulls more weight from typography, less from chrome (per redesign skill).
+    <div className="card-soft mt-16 rounded-md p-16">
       <div className="flex items-baseline justify-between gap-12">
-        <span className="text-meta text-fg-quiet">破冰建议</span>
+        <span className="text-meta text-fg-quiet uppercase tracking-wider">
+          破冰建议
+        </span>
         <span className="text-meta text-fg-quiet tabular-nums">
           {outreach.char_count} 字
           {typeof outreach.critique_score === "number" && (
@@ -123,7 +127,9 @@ function OutreachBlock({ outreach }: { outreach: OutreachWithEvents | undefined 
           {wasRewritten && <> · v2</>}
         </span>
       </div>
-      <p className="mt-8 text-body text-fg whitespace-pre-wrap">{draft}</p>
+      <p className="mt-12 text-body text-fg whitespace-pre-wrap leading-[1.7]">
+        {draft}
+      </p>
       <OutreachActions outreach={outreach} events={outreach.outreach_events} />
     </div>
   );

@@ -125,7 +125,7 @@ export function ScanForm({ productId }: ScanFormProps) {
         </p>
       )}
       {result && !error && (
-        <p className="mt-16 text-sub text-fg-muted">
+        <p className="mt-16 text-sub text-fg-muted tabular-nums">
           扫了 {result.scanned ?? 0} 条 · 留了 {result.kept ?? 0} 条
           {result.ai_failed ? ` · ${result.ai_failed} 条 AI 没解析` : ""}
           {typeof result.cost_cents === "number" && result.cost_cents > 0

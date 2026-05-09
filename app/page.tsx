@@ -7,7 +7,7 @@ import { Hero } from "./_hero";
  */
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main" className="min-h-screen flex flex-col">
       <Nav />
       <Hero />
     </main>

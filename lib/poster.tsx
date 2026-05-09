@@ -72,11 +72,11 @@ export async function renderWeeklyPoster(input: PosterInput): Promise<Response> 
               flex: 1,
             }}
           >
-            <div>离周日还有几天，加油。</div>
-            <div>
-              本周已加 {stats.prospects_added} 个 prospect 到列表，
+            <div style={{ display: "flex" }}>离周日还有几天，加油。</div>
+            <div style={{ display: "flex" }}>
+              <span>本周已加 {stats.prospects_added} 个 prospect 到列表。</span>
             </div>
-            <div>但还没标过 sent。</div>
+            <div style={{ display: "flex" }}>但还没标过 sent。</div>
           </div>
         ) : (
           <div
@@ -105,12 +105,12 @@ export async function renderWeeklyPoster(input: PosterInput): Promise<Response> 
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ fontWeight: 600 }}>{productDisplayName}</div>
-            <div style={{ opacity: 0.7 }}>{stats.iso_week}</div>
+            <div style={{ display: "flex", fontWeight: 600 }}>{productDisplayName}</div>
+            <div style={{ display: "flex", opacity: 0.7 }}>{stats.iso_week}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
-            <div style={{ fontWeight: 600 }}>First 100</div>
-            <div style={{ opacity: 0.7 }}>yourfirst100.co</div>
+            <div style={{ display: "flex", fontWeight: 600 }}>First 100</div>
+            <div style={{ display: "flex", opacity: 0.7 }}>yourfirst100.co</div>
           </div>
         </div>
       </div>
@@ -127,6 +127,7 @@ function StatRow({ value, label }: { value: number; label: string }) {
     <div style={{ display: "flex", alignItems: "baseline", gap: "32px" }}>
       <div
         style={{
+          display: "flex",
           fontSize: "144px",
           fontWeight: 700,
           lineHeight: 1,
@@ -135,7 +136,9 @@ function StatRow({ value, label }: { value: number; label: string }) {
       >
         {value}
       </div>
-      <div style={{ fontSize: "32px", fontWeight: 400, opacity: 0.85 }}>{label}</div>
+      <div style={{ display: "flex", fontSize: "32px", fontWeight: 400, opacity: 0.85 }}>
+        {label}
+      </div>
     </div>
   );
 }

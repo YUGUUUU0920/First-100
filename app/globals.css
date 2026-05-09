@@ -26,6 +26,7 @@
 
 html {
   color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -36,8 +37,29 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Headlines balance (avoids orphans on the last line). text-wrap: balance is
+   widely supported as of 2024; the property is ignored on older browsers so
+   no fallback needed. Body paragraphs get `pretty` (lighter algorithm). */
+h1, h2, h3, h4, .text-hero, .text-hero-lg {
+  text-wrap: balance;
+}
+p, li {
+  text-wrap: pretty;
+}
+
+/* Numbers in tabular figures wherever they appear inline with text — lets
+   stat counts (week index, char count, AI scores) hold a stable column width
+   when they tick up. Apply via Tailwind's `tabular-nums` class on the actual
+   span; this base rule covers <output>, <data>, <code>. */
+output, data, code {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Respect reduced motion preferences globally (DESIGN.md §5 a11y rule). */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {
@@ -58,4 +80,34 @@ body {
 /* Thin horizontal rule used for dividers in dashboard rows. */
 .rule {
   border-top: 1px solid var(--rule);
+}
+
+/* Skip-to-content link — keyboard users tab once at top of page to jump
+   over the nav directly to <main>. Visually hidden until focused. */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 8px 12px;
+  background: var(--fg);
+  color: var(--bg);
+  text-decoration: none;
+  font-size: 14px;
+  transform: translateY(-100%);
+  transition: transform var(--duration-fast) var(--ease);
+  z-index: 100;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline-offset: -2px;
+}
+
+/* Subtle 1px hairline shadow on cards-without-borders — lets us drop the
+   border outline on outreach blocks without losing depth signal. Per
+   redesign-existing-projects: prefer spacing/elevation over generic borders. */
+.card-soft {
+  background: var(--bg);
+  box-shadow:
+    0 0 0 1px rgba(10, 10, 10, 0.04),
+    0 1px 0 rgba(10, 10, 10, 0.02);
 }
