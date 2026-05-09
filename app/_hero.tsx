@@ -1,17 +1,21 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 
 /**
  * Landing hero — variant B direction (confident ownership).
- * Motion staggered per DESIGN.md §5: headline → supporting → CTA → metric
- * Every animation respects prefers-reduced-motion.
+ * Motion staggered per DESIGN.md §5: headline → supporting → CTA → metric.
+ * Metric numbers count up from 0 once the line scrolls into view (above the
+ * fold on most viewports, but the IntersectionObserver guard keeps it
+ * correct on small screens where it might land below).
+ *
+ * Every animation respects `prefers-reduced-motion`.
  */
 export function Hero() {
   const reduce = useReducedMotion();
-  // When user prefers reduced motion, flatten all transforms to 0 and shorten duration.
   const ease = [0.25, 0.1, 0.25, 1] as const;
   const fadeUp = (delayMs: number) => ({
     initial: { opacity: 0, y: reduce ? 0 : 12 },
@@ -43,9 +47,11 @@ export function Hero() {
 
       <motion.p
         {...fadeUp(440)}
-        className="mt-48 text-sub lg:text-sub-lg text-fg-quiet"
+        className="mt-48 text-sub lg:text-sub-lg text-fg-quiet tabular-nums"
       >
-        平均 7 天 · 23 条回复 · 3 个真实用户
+        平均 <CountUp to={7} reduceMotion={!!reduce} /> 天 ·{" "}
+        <CountUp to={23} reduceMotion={!!reduce} /> 条回复 ·{" "}
+        <CountUp to={3} reduceMotion={!!reduce} /> 个真实用户
       </motion.p>
 
       <motion.p
@@ -55,5 +61,62 @@ export function Hero() {
         Your first 100 users, found.
       </motion.p>
     </section>
+  );
+}
+
+/**
+ * Counts up from 0 to `to` over 900ms once the element scrolls into view.
+ * Uses requestAnimationFrame; no external dep beyond framer-motion (already present).
+ *
+ * `prefers-reduced-motion`: snap directly to the final value, no animation.
+ */
+function CountUp({
+  to,
+  reduceMotion,
+  durationMs = 900,
+}: {
+  to: number;
+  reduceMotion: boolean;
+  durationMs?: number;
+}) {
+  const [n, setN] = useState(reduceMotion ? to : 0);
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      setN(to);
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !startedRef.current) {
+            startedRef.current = true;
+            const t0 = performance.now();
+            const tick = (now: number) => {
+              const p = Math.min(1, (now - t0) / durationMs);
+              // ease-out cubic
+              const eased = 1 - Math.pow(1 - p, 3);
+              setN(Math.round(to * eased));
+              if (p < 1) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+            obs.disconnect();
+          }
+        }
+      },
+      { rootMargin: "0px", threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [to, reduceMotion, durationMs]);
+
+  return (
+    <span ref={ref} className="text-fg-muted">
+      {n}
+    </span>
   );
 }

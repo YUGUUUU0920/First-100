@@ -41,8 +41,13 @@ export function ProspectList({ prospects }: ProspectListProps) {
         <span className="text-meta text-fg-quiet">{prospects.length} 条</span>
       </div>
       <ul className="mt-16">
-        {prospects.map((p) => (
-          <li key={p.id} className="rule py-24 first:border-t-0 first:pt-0">
+        {prospects.map((p, i) => (
+          <li
+            key={p.id}
+            className="rule py-24 first:border-t-0 first:pt-0 prospect-row"
+            // Cap index so a 50-row list doesn't take 2s to fully fade in.
+            style={{ "--prospect-i": Math.min(i, 12) } as React.CSSProperties}
+          >
             <ProspectRow prospect={p} />
           </li>
         ))}
