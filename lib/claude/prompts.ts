@@ -9,7 +9,7 @@
  */
 
 export const RELEVANCE_FILTER_VERSION = "filter-v1";
-export const OUTREACH_GENERATE_VERSION = "gen-v1";
+export const OUTREACH_GENERATE_VERSION = "gen-v2";
 export const OUTREACH_CRITIQUE_VERSION = "critique-v1";
 
 // AI-味 critique threshold: drafts scoring below this get rewritten once.
@@ -115,17 +115,18 @@ export function buildOutreachGenerationMessage(input: OutreachGenerationInput) {
     "我会给你一段产品描述，和一条社区帖子（V2EX 或即刻）。",
     "你的任务：为帖子作者写一条**中文破冰回复**，让 ta 看到时点开了解我的产品。",
     "",
-    "硬约束：",
-    `  - ≤ ${OUTREACH_MAX_CHARS} 字`,
+    "硬约束（违反任意一条 = 失败）：",
+    `  - draft ≤ ${OUTREACH_MAX_CHARS} 个汉字（含标点）。请字数严格控制。`,
     "  - 必须引用帖子里至少一个具体细节（不能泛泛而谈）",
     "  - 不强行嵌入产品链接 / 二维码（提到产品名即可）",
     "  - 不用 AI 万金油词：「赋能」「打造」「全方位」「生态」「闭环」「赛道」",
     "  - 写得像真实 indie 在留言，不是销售机器人",
     "  - 用中文社区的对话感（直接、不啰嗦、自嘲 OK）",
     "  - 不要开头说「您好」或「老哥您好」之类客套",
+    "  - rationale ≤ 30 字，一句话",
     "",
     "只回 JSON，不要 markdown，不要前后文字：",
-    `{"draft": "<回复文本>", "rationale": "<一句话解释你为什么这么写>"}`,
+    `{"draft": "<回复文本>", "rationale": "<≤30字解释>"}`,
   ].join("\n");
 
   const productContext = [

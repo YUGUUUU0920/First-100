@@ -13,12 +13,18 @@ export const HAIKU_MODEL = "claude-haiku-4-5-20251001" as const;
 export const SONNET_MODEL = "claude-sonnet-4-6" as const;
 
 /**
- * Per-call token caps from CEO plan §cost & abuse bounds.
- * Sonnet outreach: ≤ 280 字符 → ~400 tokens with overhead.
- * Haiku filter/critique: short JSON response → 200 tokens is plenty.
+ * Per-call token caps.
+ *
+ * CEO plan §cost & abuse bounds originally said Sonnet=400, but real outputs
+ * (Chinese ~1.5 tok/char × 280-char draft + rationale + JSON wrapping) often
+ * cleared 600-800 tokens, hitting the cap and producing unparseable JSON
+ * truncation.  1000 gives Sonnet headroom while keeping cost trivial — at
+ * $15/MTok output, 1000 tokens = $0.015 worst case per outreach.
+ *
+ * Haiku filter / critique returns short structured JSON — 200 stays fine.
  */
 export const HAIKU_MAX_TOKENS = 200;
-export const SONNET_MAX_TOKENS = 400;
+export const SONNET_MAX_TOKENS = 1000;
 
 let _client: Anthropic | null = null;
 
