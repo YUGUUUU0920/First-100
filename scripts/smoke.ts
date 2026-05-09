@@ -14,6 +14,7 @@ import { fetchNodeTopics, ageDays } from "../lib/v2ex";
 import { getClaude } from "../lib/claude";
 import { scoreRelevance } from "../lib/claude/filter";
 import { generateOutreachWithCritique } from "../lib/claude/generate";
+import { OUTREACH_MAX_CHARS } from "../lib/claude/prompts";
 import { renderWeeklyPoster } from "../lib/poster";
 import { shanghaiWeekBounds } from "../lib/weekly-stats";
 
@@ -91,8 +92,10 @@ await check("Sonnet generateOutreachWithCritique returns valid draft", async () 
   if (typeof outcome.draft_v1 !== "string" || outcome.draft_v1.length < 20) {
     throw new Error(`draft_v1 too short: "${outcome.draft_v1}"`);
   }
-  if (outcome.final_chosen.length > 280) {
-    throw new Error(`final_chosen exceeds 280 chars: ${outcome.final_chosen.length}`);
+  if (outcome.final_chosen.length > OUTREACH_MAX_CHARS) {
+    throw new Error(
+      `final_chosen exceeds ${OUTREACH_MAX_CHARS} chars: ${outcome.final_chosen.length}`
+    );
   }
   if (typeof outcome.critique_score !== "number") {
     throw new Error("critique_score missing");

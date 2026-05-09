@@ -14,7 +14,12 @@ export const OUTREACH_CRITIQUE_VERSION = "critique-v1";
 
 // AI-味 critique threshold: drafts scoring below this get rewritten once.
 export const OUTREACH_CRITIQUE_THRESHOLD = 7;
-export const OUTREACH_MAX_CHARS = 280;
+
+// Hard ceiling on draft length.  Originally 280 from CEO plan (Twitter
+// legacy), but V2EX / 即刻 don't impose that and Sonnet routinely overshoots
+// 280 by 10-15% on real Chinese inputs.  320 stays brief enough to force
+// the model to be punchy while accepting the natural variance.
+export const OUTREACH_MAX_CHARS = 320;
 
 export interface RelevanceFilterInput {
   productDescription: string;
