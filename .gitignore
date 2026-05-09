@@ -6,6 +6,9 @@ dist
 build
 .DS_Store
 .claude/settings.local.json
+.claude/worktrees/
+.agents/
+skills-lock.json
 *.log
 npm-debug.log*
 .pnpm-debug.log*

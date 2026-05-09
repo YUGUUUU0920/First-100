@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
@@ -119,12 +119,20 @@ export function ScanForm({ productId }: ScanFormProps) {
         ))}
       </div>
 
-      {error && (
-        <p className="mt-16 text-sub text-fg" role="alert">
-          {error}
-        </p>
+      {isWorking && <ScanProgress />}
+
+      {error && !isWorking && (
+        <div
+          className="mt-16 px-16 py-12 border border-fg/15 rounded-md bg-fg/[0.03]"
+          role="alert"
+        >
+          <p className="text-sub text-fg">{error}</p>
+          <p className="mt-4 text-meta text-fg-quiet">
+            没事，再点一次扫一下。如果一直失败，把这条信息发给我。
+          </p>
+        </div>
       )}
-      {result && !error && (
+      {result && !error && !isWorking && (
         <p className="mt-16 text-sub text-fg-muted tabular-nums">
           扫了 {result.scanned ?? 0} 条 · 留了 {result.kept ?? 0} 条
           {result.ai_failed ? ` · ${result.ai_failed} 条 AI 没解析` : ""}
@@ -135,5 +143,56 @@ export function ScanForm({ productId }: ScanFormProps) {
         </p>
       )}
     </form>
+  );
+}
+
+/**
+ * Inline progress while a scan is in flight (~12-18s typical).  We can't
+ * stream actual milestones from the server in v0, so we show a phase ladder
+ * that advances on time — purely cosmetic, but signals "still alive" so the
+ * user doesn't refresh mid-scan.
+ */
+function ScanProgress() {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 2500);
+    const t2 = setTimeout(() => setPhase(2), 6500);
+    const t3 = setTimeout(() => setPhase(3), 14000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, []);
+
+  const steps = [
+    { label: "抓 V2EX 节点列表", until: 1 },
+    { label: "Haiku 过滤相关性（并发 ~20 条）", until: 2 },
+    { label: "Sonnet 写中文破冰 + critique", until: 3 },
+    { label: "写入数据库", until: 4 },
+  ];
+
+  return (
+    <div className="mt-16 px-16 py-12 border border-rule rounded-md bg-fg/[0.02]">
+      <ul className="space-y-4 text-sub">
+        {steps.map((s, i) => (
+          <li
+            key={s.label}
+            className={`flex items-center gap-8 tabular-nums ${
+              i < phase
+                ? "text-fg-quiet"
+                : i === phase
+                  ? "text-fg"
+                  : "text-fg-quiet/60"
+            }`}
+          >
+            <span aria-hidden="true">
+              {i < phase ? "✓" : i === phase ? "▸" : "·"}
+            </span>
+            {s.label}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
