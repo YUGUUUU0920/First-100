@@ -66,13 +66,15 @@ export async function markOutreach(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// 即刻 paste — user long-presses a Jike post and pastes body + author + URL.
-// We trust the user's submission (no relevance filter; if they typed it in,
-// it's relevant), and immediately generate outreach.
+// Pasted prospect — user long-presses a post on a platform that doesn't have
+// a scrape-able API (即刻 / 小红书) and pastes body + author + URL into the
+// dashboard. We trust the user's submission (no relevance filter; if they
+// typed it in, it's relevant) and generate outreach inline.
 // ─────────────────────────────────────────────────────────────────────────
 
 const pasteSchema = z.object({
   product_id: z.string().uuid(),
+  platform: z.enum(["jike-pasted", "xhs-pasted"]),
   body: z.string().trim().min(10, "正文太短，至少 10 字").max(2000, "正文过长"),
   author_handle: z.string().trim().min(1, "作者昵称不能空").max(80),
   source_url: z
@@ -91,20 +93,22 @@ export type PasteResult =
   | { ok: true; prospect_id: string; outreach_status: "ok" | "ai_failed" }
   | { ok: false; error: string; field?: keyof z.infer<typeof pasteSchema> };
 
-const JIKE_SCAN_REUSE_WINDOW_HOURS = 24;
+const PASTE_SCAN_REUSE_WINDOW_HOURS = 24;
 
-export async function pasteJikeProspect(
+export async function pastedProspect(
   _prev: PasteResult | null,
   formData: FormData
 ): Promise<PasteResult> {
   const raw = {
     product_id: formData.get("product_id"),
+    platform: formData.get("platform"),
     body: formData.get("body"),
     author_handle: formData.get("author_handle"),
     source_url: formData.get("source_url") ?? "",
   };
   if (
     typeof raw.product_id !== "string" ||
+    typeof raw.platform !== "string" ||
     typeof raw.body !== "string" ||
     typeof raw.author_handle !== "string" ||
     typeof raw.source_url !== "string"
@@ -120,7 +124,7 @@ export async function pasteJikeProspect(
       field: issue?.path[0] as keyof z.infer<typeof pasteSchema> | undefined,
     };
   }
-  const { product_id, body, author_handle, source_url } = parsed.data;
+  const { product_id, platform, body, author_handle, source_url } = parsed.data;
 
   const userClient = await createClient();
   const {
@@ -142,14 +146,14 @@ export async function pasteJikeProspect(
   // Reuse the most recent jike-pasted scan for this product if it's < 24h old.
   // Each fresh day = a fresh scan, simplifying the dashboard's "this week" rollup.
   const cutoffISO = new Date(
-    Date.now() - JIKE_SCAN_REUSE_WINDOW_HOURS * 3600 * 1000
+    Date.now() - PASTE_SCAN_REUSE_WINDOW_HOURS * 3600 * 1000
   ).toISOString();
   const { data: existingScan } = await admin
     .from("scans")
     .select("id")
     .eq("user_id", user.id)
     .eq("product_id", product_id)
-    .eq("platform", "jike-pasted")
+    .eq("platform", platform)
     .gte("started_at", cutoffISO)
     .order("started_at", { ascending: false })
     .limit(1)
@@ -162,7 +166,7 @@ export async function pasteJikeProspect(
       .insert({
         user_id: user.id,
         product_id,
-        platform: "jike-pasted",
+        platform,
         trigger: "user",
       })
       .select("id")
@@ -174,13 +178,14 @@ export async function pasteJikeProspect(
   }
 
   // Insert prospect.
+  const urlPrefix = platform === "xhs-pasted" ? "xhs" : "jike";
   const { data: prospect, error: prospectErr } = await admin
     .from("prospects")
     .insert({
       scan_id: scanId,
       user_id: user.id,
-      source_platform: "jike-pasted",
-      source_url: source_url || `jike://pasted/${Date.now()}`,
+      source_platform: platform,
+      source_url: source_url || `${urlPrefix}://pasted/${Date.now()}`,
       author_handle,
       post_title: null,
       post_body: body,
@@ -241,6 +246,61 @@ export async function pasteJikeProspect(
 
   revalidatePath("/dashboard");
   return { ok: true, prospect_id: prospect.id, outreach_status: "ok" };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Save edited outreach — founder tweaks 1-2 words in the AI draft before
+// copying. We store the final-edited version in outreaches.final_chosen so
+// next time they open the dashboard they see THEIR version, not the AI draft.
+// ─────────────────────────────────────────────────────────────────────────
+
+const editSchema = z.object({
+  outreach_id: z.string().uuid(),
+  text: z.string().trim().min(1, "草稿不能空").max(800, "草稿过长（>800）"),
+});
+
+export type SaveEditResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function saveOutreachEdit(
+  outreachId: string,
+  text: string
+): Promise<SaveEditResult> {
+  const parsed = editSchema.safeParse({ outreach_id: outreachId, text });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "校验失败" };
+  }
+
+  const userClient = await createClient();
+  const {
+    data: { user },
+  } = await userClient.auth.getUser();
+  if (!user) return { ok: false, error: "unauthorized" };
+
+  const admin = createAdminClient();
+  const { data: o } = await admin
+    .from("outreaches")
+    .select("user_id")
+    .eq("id", outreachId)
+    .single();
+  if (!o || o.user_id !== user.id) {
+    return { ok: false, error: "outreach not found" };
+  }
+
+  const { error: updErr } = await admin
+    .from("outreaches")
+    .update({
+      final_chosen: parsed.data.text,
+      char_count: parsed.data.text.length,
+    })
+    .eq("id", outreachId);
+  if (updErr) {
+    return { ok: false, error: updErr.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Product } from "@/lib/supabase/types";
-import { JikePasteForm } from "./_jike-paste-form";
+import { PasteForm } from "./_paste-form";
 import { ProspectList, type ProspectWithOutreach } from "./_prospect-list";
 import {
   ProspectFilterBar,
@@ -107,7 +107,8 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
         <ThisWeek stats={weeklyStats} streak={streak} />
 
         <ScanForm productId={activeProduct.id} />
-        <JikePasteForm productId={activeProduct.id} />
+        <PasteForm productId={activeProduct.id} platform="jike-pasted" />
+        <PasteForm productId={activeProduct.id} platform="xhs-pasted" />
 
         {prospectsErr ? (
           <p className="mt-32 text-sub text-fg" role="alert">

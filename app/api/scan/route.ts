@@ -7,6 +7,12 @@ import { getClaude } from "@/lib/claude";
 import { scoreRelevance } from "@/lib/claude/filter";
 import { generateOutreachWithCritique } from "@/lib/claude/generate";
 import { ageDays, fetchNodeTopics, V2EXError } from "@/lib/v2ex";
+import {
+  JUEJIN_CATEGORIES,
+  fetchJuejinFeed,
+  JuejinError,
+  type JuejinCategory,
+} from "@/lib/juejin";
 
 /**
  * POST /api/scan
@@ -28,6 +34,8 @@ import { ageDays, fetchNodeTopics, V2EXError } from "@/lib/v2ex";
 
 const scanRequestSchema = z.object({
   product_id: z.string().uuid(),
+  // source: v2ex (default) or juejin. node param is reused as juejin category.
+  source: z.enum(["v2ex", "juejin"]).default("v2ex"),
   node: z
     .string()
     .min(1, "节点名不能空")
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  const { product_id, node, min_score } = parsed.data;
+  const { product_id, source, node, min_score } = parsed.data;
 
   // 3. Verify product belongs to this user (admin client + manual check).
   const admin = createAdminClient();
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
     .insert({
       user_id: user.id,
       product_id,
-      platform: "v2ex",
+      platform: source,
       trigger: "user",
     })
     .select("id")
@@ -110,22 +118,67 @@ export async function POST(request: NextRequest) {
   }
   const scanId = scan.id;
 
-  // 5. Fetch V2EX topics. On failure, mark scan finished with error_message.
-  let topics;
+  // 5. Fetch posts from the chosen source. Normalize into a common shape so
+  //    the AI filter + insert pipeline below doesn't care where they came from.
+  type NormalizedPost = {
+    title: string;
+    body: string;
+    url: string;
+    author_handle: string;
+    age_days: number;
+    score: number | null;       // post_score column (likes / 点赞)
+    reply_count: number | null;
+  };
+
+  let posts: NormalizedPost[];
   try {
-    topics = (await fetchNodeTopics(node)).topics;
+    if (source === "juejin") {
+      // For juejin the `node` param maps to one of our known categories
+      const cat = node as JuejinCategory;
+      if (!(cat in JUEJIN_CATEGORIES)) {
+        throw new JuejinError(
+          `juejin 不支持 category：${node}（用 ${Object.keys(JUEJIN_CATEGORIES).join(" / ")}）`,
+          "invalid_category"
+        );
+      }
+      const result = await fetchJuejinFeed(cat);
+      posts = result.articles.map((a) => ({
+        title: a.title,
+        body: a.brief,
+        url: a.url,
+        author_handle: a.author_handle,
+        age_days: ageDays(a.ctime),
+        score: a.digg_count,
+        reply_count: a.comment_count,
+      }));
+    } else {
+      const topics = (await fetchNodeTopics(node)).topics;
+      posts = topics.map((t) => ({
+        title: t.title,
+        body: t.content,
+        url: t.url,
+        author_handle: t.member.username,
+        age_days: ageDays(t.created),
+        score: null, // V2EX doesn't expose upvotes
+        reply_count: t.replies,
+      }));
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await admin
       .from("scans")
       .update({ finished_at: new Date().toISOString(), error_message: msg })
       .eq("id", scanId);
-    const status = err instanceof V2EXError && err.cause_kind === "invalid_node" ? 400 : 502;
+    const isInvalid =
+      (err instanceof V2EXError && err.cause_kind === "invalid_node") ||
+      (err instanceof JuejinError && err.cause_kind === "invalid_category");
+    const status = isInvalid ? 400 : 502;
     return NextResponse.json(
-      { error: { code: "v2ex_error", message: msg }, scan_id: scanId },
+      { error: { code: "fetch_error", message: msg }, scan_id: scanId },
       { status }
     );
   }
+  const topics = posts; // reuse variable name below — same NormalizedPost shape
 
   if (topics.length === 0) {
     await admin
@@ -141,16 +194,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // 6. Score each topic via Haiku (parallel, system prompt cached).
+  // 6. Score each post via Haiku (parallel, system prompt cached).
   const claude = getClaude();
   const filterResults = await Promise.all(
-    topics.map((topic) =>
+    topics.map((post) =>
       scoreRelevance(claude, {
         productDescription: product.description,
         targetPersona: product.target_persona,
-        postTitle: topic.title,
-        postBody: topic.content,
-      }).then((outcome) => ({ topic, outcome }))
+        postTitle: post.title,
+        postBody: post.body,
+      }).then((outcome) => ({ post, outcome }))
     )
   );
 
@@ -161,20 +214,20 @@ export async function POST(request: NextRequest) {
   type ProspectInsert = {
     scan_id: string;
     user_id: string;
-    source_platform: "v2ex";
+    source_platform: typeof source;
     source_url: string;
     author_handle: string;
     post_title: string;
     post_body: string;
     post_age_days: number;
     post_score: number | null;
-    post_reply_count: number;
+    post_reply_count: number | null;
     ai_relevance_score: number;
     ai_filter_reason: string;
   };
   const prospectRows: ProspectInsert[] = [];
 
-  for (const { topic, outcome } of filterResults) {
+  for (const { post, outcome } of filterResults) {
     if (!outcome.ok) {
       aiFailed += 1;
       continue;
@@ -185,14 +238,14 @@ export async function POST(request: NextRequest) {
     prospectRows.push({
       scan_id: scanId,
       user_id: user.id,
-      source_platform: "v2ex",
-      source_url: topic.url,
-      author_handle: topic.member.username,
-      post_title: topic.title,
-      post_body: topic.content,
-      post_age_days: ageDays(topic.created),
-      post_score: null, // V2EX doesn't expose upvotes
-      post_reply_count: topic.replies,
+      source_platform: source,
+      source_url: post.url,
+      author_handle: post.author_handle,
+      post_title: post.title,
+      post_body: post.body,
+      post_age_days: post.age_days,
+      post_score: post.score,
+      post_reply_count: post.reply_count,
       ai_relevance_score: outcome.score,
       ai_filter_reason: `[${outcome.prompt_version}] ${outcome.reason}`,
     });

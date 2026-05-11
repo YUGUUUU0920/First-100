@@ -1,5 +1,5 @@
 import type { Outreach, OutreachEvent, Prospect } from "@/lib/supabase/types";
-import { OutreachActions } from "./_outreach-actions";
+import { EditableOutreach } from "./_editable-outreach";
 import { RegenerateOnly } from "./_regenerate-only";
 
 // Supabase nests FK relationships as arrays. For 1:1 relationships (unique FK
@@ -29,7 +29,7 @@ export function ProspectList({ prospects }: ProspectListProps) {
       <div className="rule pt-32 mt-48">
         <h2 className="text-h2 font-semibold text-fg">Prospects</h2>
         <p className="mt-16 text-body text-fg-muted">
-          准备好了？点上面按钮扫一次 V2EX。5 分钟出 30 个潜在用户。
+          准备好了？扫一次 V2EX / 掘金，或者粘一条即刻 / 小红书。5 分钟出 30 个潜在用户。
         </p>
       </div>
     );
@@ -125,35 +125,15 @@ function OutreachBlock({
     );
   }
   const draft = outreach.final_chosen ?? outreach.draft_v1;
-  const wasRewritten =
-    !!outreach.draft_v2 &&
-    outreach.final_chosen === outreach.draft_v2;
 
   return (
     // card-soft = 1px hairline shadow instead of generic border outline.
     // Pulls more weight from typography, less from chrome (per redesign skill).
-    <div className="card-soft mt-16 rounded-md p-16">
-      <div className="flex items-baseline justify-between gap-12">
-        <span className="text-meta text-fg-quiet uppercase tracking-wider">
-          破冰建议
-        </span>
-        <span className="text-meta text-fg-quiet tabular-nums">
-          {outreach.char_count} 字
-          {typeof outreach.critique_score === "number" && (
-            <> · AI 味分 {outreach.critique_score.toFixed(1)}/10</>
-          )}
-          {wasRewritten && <> · v2</>}
-        </span>
-      </div>
-      <p className="mt-12 text-body text-fg whitespace-pre-wrap leading-[1.7]">
-        {draft}
-      </p>
-      <OutreachActions
-        outreach={outreach}
-        events={outreach.outreach_events}
-        prospectId={prospectId}
-      />
-    </div>
+    <EditableOutreach
+      outreach={outreach}
+      prospectId={prospectId}
+      initialDraft={draft}
+    />
   );
 }
 

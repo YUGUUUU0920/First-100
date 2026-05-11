@@ -132,3 +132,20 @@ output, data, code {
     animation-delay: calc(var(--prospect-i, 0) * 40ms);
   }
 }
+
+/* Floating toast for copy / save feedback. Slides up, holds, fades out. */
+@keyframes toast-rise {
+  0% { opacity: 0; transform: translateY(8px); }
+  10% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.animate-toast {
+  animation: toast-rise 1.8s var(--ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast {
+    animation: none;
+    opacity: 1;
+  }
+}

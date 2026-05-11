@@ -7,7 +7,7 @@
  * on every owned row to match RLS column.
  */
 
-export type Platform = "v2ex" | "jike-pasted";
+export type Platform = "v2ex" | "jike-pasted" | "xhs-pasted" | "juejin";
 export type ScanTrigger = "user" | "cron";
 export type OutreachStatus = "sent" | "replied" | "converted" | "skipped";
 export type OutreachDraftStatus = "pending" | "ok" | "ai_failed";
