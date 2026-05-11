@@ -174,6 +174,13 @@ export interface OutreachGenerationOutput {
   rationale: string;
 }
 
+// Hard ceiling — drafts > OUTREACH_HARD_CAP are treated as parse failures and
+// flagged ai_failed. The model's prompt asks for ≤ OUTREACH_MAX_CHARS (320),
+// so 480 is 50% headroom for natural variance. Anything over that is a
+// runaway and not safe to ship to a real V2EX/即刻 thread.
+export const OUTREACH_HARD_CAP = 480;
+export const OUTREACH_MIN_CHARS = 20;
+
 export function parseOutreachGenerationOutput(raw: string): OutreachGenerationOutput | null {
   const stripped = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
   try {
@@ -184,9 +191,15 @@ export function parseOutreachGenerationOutput(raw: string): OutreachGenerationOu
       "draft" in parsed &&
       typeof (parsed as { draft: unknown }).draft === "string"
     ) {
-      const { draft, rationale } = parsed as { draft: string; rationale?: unknown };
+      const { draft: rawDraft, rationale } = parsed as { draft: string; rationale?: unknown };
+      const draft = rawDraft.trim();
+      // LLM output trust boundary (CSO §LLM Output Trust): reject empty or
+      // runaway-length drafts before they hit the DB / user clipboard.
+      if (draft.length < OUTREACH_MIN_CHARS || draft.length > OUTREACH_HARD_CAP) {
+        return null;
+      }
       return {
-        draft: draft.trim(),
+        draft,
         rationale: typeof rationale === "string" ? rationale : "",
       };
     }
