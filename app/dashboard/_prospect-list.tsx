@@ -1,5 +1,6 @@
 import type { Outreach, OutreachEvent, Prospect } from "@/lib/supabase/types";
 import { OutreachActions } from "./_outreach-actions";
+import { RegenerateOnly } from "./_regenerate-only";
 
 // Supabase nests FK relationships as arrays. For 1:1 relationships (unique FK
 // on outreaches.prospect_id) we manually take [0].
@@ -60,6 +61,7 @@ function ProspectRow({ prospect }: { prospect: ProspectWithOutreach }) {
   const score = prospect.ai_relevance_score ?? 0;
   const reasonText = stripPromptVersion(prospect.ai_filter_reason);
   const outreach = prospect.outreaches[0];
+  const prospectId = prospect.id;
 
   return (
     <article className="grid grid-cols-[auto_1fr] gap-16 items-start">
@@ -90,13 +92,19 @@ function ProspectRow({ prospect }: { prospect: ProspectWithOutreach }) {
           {prospect.post_body.length > 160 ? "…" : ""}
         </p>
 
-        <OutreachBlock outreach={outreach} />
+        <OutreachBlock outreach={outreach} prospectId={prospectId} />
       </div>
     </article>
   );
 }
 
-function OutreachBlock({ outreach }: { outreach: OutreachWithEvents | undefined }) {
+function OutreachBlock({
+  outreach,
+  prospectId,
+}: {
+  outreach: OutreachWithEvents | undefined;
+  prospectId: string;
+}) {
   if (!outreach) {
     return (
       <p className="mt-16 text-sub text-fg-quiet">
@@ -106,9 +114,14 @@ function OutreachBlock({ outreach }: { outreach: OutreachWithEvents | undefined 
   }
   if (outreach.status === "ai_failed") {
     return (
-      <p className="mt-16 text-sub text-fg" role="alert">
-        AI 没生成成功 — {stripPromptVersion(outreach.critique_feedback) || "稍后能加重试按钮"}
-      </p>
+      <div className="mt-16 px-16 py-12 border border-fg/15 rounded-md bg-fg/[0.03]">
+        <p className="text-sub text-fg" role="alert">
+          AI 没生成成功 — {stripPromptVersion(outreach.critique_feedback) || "未知原因"}
+        </p>
+        <div className="mt-12">
+          <RegenerateOnly prospectId={prospectId} />
+        </div>
+      </div>
     );
   }
   const draft = outreach.final_chosen ?? outreach.draft_v1;
@@ -135,7 +148,11 @@ function OutreachBlock({ outreach }: { outreach: OutreachWithEvents | undefined 
       <p className="mt-12 text-body text-fg whitespace-pre-wrap leading-[1.7]">
         {draft}
       </p>
-      <OutreachActions outreach={outreach} events={outreach.outreach_events} />
+      <OutreachActions
+        outreach={outreach}
+        events={outreach.outreach_events}
+        prospectId={prospectId}
+      />
     </div>
   );
 }

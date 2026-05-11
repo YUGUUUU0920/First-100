@@ -243,3 +243,97 @@ export async function pasteJikeProspect(
   return { ok: true, prospect_id: prospect.id, outreach_status: "ok" };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Regenerate outreach — when the founder doesn't like what AI wrote, click
+// "重写" to rerun the Sonnet generate + Haiku critique pipeline once more.
+// Replaces the existing outreach row in place.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type RegenerateResult =
+  | { ok: true; outreach_status: "ok" | "ai_failed" }
+  | { ok: false; error: string };
+
+export async function regenerateOutreach(
+  prospectId: string
+): Promise<RegenerateResult> {
+  if (typeof prospectId !== "string" || prospectId.length === 0) {
+    return { ok: false, error: "missing prospect id" };
+  }
+
+  const userClient = await createClient();
+  const {
+    data: { user },
+  } = await userClient.auth.getUser();
+  if (!user) return { ok: false, error: "unauthorized" };
+
+  const admin = createAdminClient();
+
+  const { data: prospect, error: prospectErr } = await admin
+    .from("prospects")
+    .select(
+      "id, user_id, post_title, post_body, author_handle, scans!inner(product_id)"
+    )
+    .eq("id", prospectId)
+    .single();
+  if (prospectErr || !prospect || prospect.user_id !== user.id) {
+    return { ok: false, error: "prospect not found" };
+  }
+
+  const productId = (prospect.scans as unknown as { product_id: string })
+    .product_id;
+  const { data: product, error: productErr } = await admin
+    .from("products")
+    .select("display_name, description, target_persona")
+    .eq("id", productId)
+    .single();
+  if (productErr || !product) {
+    return { ok: false, error: "product not found" };
+  }
+
+  const claude = getClaude();
+  const outcome = await generateOutreachWithCritique(claude, {
+    productDisplayName: product.display_name,
+    productDescription: product.description,
+    targetPersona: product.target_persona,
+    postTitle: prospect.post_title,
+    postBody: prospect.post_body,
+    authorHandle: prospect.author_handle,
+  });
+
+  if (!outcome.ok) {
+    await admin
+      .from("outreaches")
+      .update({
+        critique_feedback: `[${outcome.generate_version}] ${outcome.reason}: ${outcome.detail}`,
+        status: "ai_failed",
+      })
+      .eq("prospect_id", prospectId);
+    revalidatePath("/dashboard");
+    return { ok: true, outreach_status: "ai_failed" };
+  }
+
+  // Upsert: outreaches has a unique index on prospect_id (0001 schema).
+  const { error: upsertErr } = await admin.from("outreaches").upsert(
+    {
+      prospect_id: prospectId,
+      user_id: user.id,
+      draft_v1: outcome.draft_v1,
+      critique_score: outcome.critique_score,
+      critique_feedback: `[${outcome.generate_version}|${outcome.critique_version}] ${outcome.critique_feedback}`,
+      draft_v2: outcome.draft_v2,
+      final_chosen: outcome.final_chosen,
+      char_count: outcome.final_chosen.length,
+      sonnet_tokens: outcome.sonnet_input_tokens + outcome.sonnet_output_tokens,
+      haiku_tokens: outcome.haiku_input_tokens + outcome.haiku_output_tokens,
+      status: "ok",
+    },
+    { onConflict: "prospect_id" }
+  );
+  if (upsertErr) {
+    return { ok: false, error: `outreach upsert: ${upsertErr.message}` };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true, outreach_status: "ok" };
+}
+
