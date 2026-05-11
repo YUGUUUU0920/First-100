@@ -7,6 +7,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Product } from "@/lib/supabase/types";
 import { JikePasteForm } from "./_jike-paste-form";
 import { ProspectList, type ProspectWithOutreach } from "./_prospect-list";
+import {
+  ProspectFilterBar,
+  countByStatus,
+  filterByStatus,
+} from "./_prospect-filter";
 import { ScanForm } from "./_scan-form";
 import { SignOutButton } from "./_signout-button";
 import { ThisWeek } from "./_this-week";
@@ -15,8 +20,19 @@ import { getStreakWeeks, getWeeklyStats } from "@/lib/weekly-stats";
 // Reads cookies + DB on every request — never prerender.
 export const dynamic = "force-dynamic";
 
+type StatusFilter =
+  | "all"
+  | "not_sent"
+  | "awaiting_reply"
+  | "replied"
+  | "converted";
+
 interface DashboardSearchParams {
-  searchParams: Promise<{ product?: string }>;
+  searchParams: Promise<{
+    product?: string;
+    min_score?: string;
+    status?: StatusFilter;
+  }>;
 }
 
 export default async function Dashboard({ searchParams }: DashboardSearchParams) {
@@ -45,18 +61,31 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
   const requestedId = sp.product;
   const activeProduct =
     (requestedId ? products.find((p) => p.id === requestedId) : null) ?? products[0]!;
+  const minScore = sp.min_score ? Number(sp.min_score) : 0;
+  const statusFilter: StatusFilter =
+    sp.status && ["all", "not_sent", "awaiting_reply", "replied", "converted"].includes(sp.status)
+      ? sp.status
+      : "all";
 
-  // Pull prospects + outreach (1:1) + outreach_events (many).  outreaches is
-  // left-joined so a prospect with no outreach (e.g., legacy scan before gen
-  // pipeline) still shows up.
-  const { data: prospects, error: prospectsErr } = await admin
+  // Pull prospects + outreach (1:1) + outreach_events (many).  Score gate
+  // pushed to DB; status filter is JS-side because it depends on the
+  // shape of joined outreach_events.
+  let prospectsQuery = admin
     .from("prospects")
     .select("*, scans!inner(product_id), outreaches(*, outreach_events(*))")
     .eq("user_id", user.id)
-    .eq("scans.product_id", activeProduct.id)
+    .eq("scans.product_id", activeProduct.id);
+  if (minScore > 0) {
+    prospectsQuery = prospectsQuery.gte("ai_relevance_score", minScore);
+  }
+  const { data: rawProspects, error: prospectsErr } = await prospectsQuery
     .order("ai_relevance_score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(50);
+
+  const prospects = rawProspects ? filterByStatus(rawProspects, statusFilter) : [];
+
+  const filterCounts = rawProspects ? countByStatus(rawProspects) : null;
 
   // Weekly stats + streak — feeds the "本周" panel and the poster generator.
   const [weeklyStats, streak] = await Promise.all([
@@ -85,9 +114,17 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
             读取 prospects 出错：{prospectsErr.message}
           </p>
         ) : (
-          <ProspectList
-            prospects={(prospects ?? []) as unknown as ProspectWithOutreach[]}
-          />
+          <>
+            <ProspectFilterBar
+              productId={activeProduct.id}
+              currentMinScore={minScore}
+              currentStatus={statusFilter}
+              counts={filterCounts}
+            />
+            <ProspectList
+              prospects={prospects as unknown as ProspectWithOutreach[]}
+            />
+          </>
         )}
       </section>
     </main>
