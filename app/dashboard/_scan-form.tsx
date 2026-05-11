@@ -133,14 +133,22 @@ export function ScanForm({ productId }: ScanFormProps) {
         </div>
       )}
       {result && !error && !isWorking && (
-        <p className="mt-16 text-sub text-fg-muted tabular-nums">
-          扫了 {result.scanned ?? 0} 条 · 留了 {result.kept ?? 0} 条
-          {result.ai_failed ? ` · ${result.ai_failed} 条 AI 没解析` : ""}
-          {typeof result.cost_cents === "number" && result.cost_cents > 0
-            ? ` · 花了 ${(result.cost_cents / 100).toFixed(3)} 美元`
-            : ""}
-          {result.idempotent ? "（60 秒内重复请求，返回上一次结果）" : ""}
-        </p>
+        <div className="mt-16">
+          <p className="text-sub text-fg-muted tabular-nums">
+            扫了 {result.scanned ?? 0} 条 · 留了 {result.kept ?? 0} 条
+            {result.ai_failed ? ` · ${result.ai_failed} 条 AI 没解析` : ""}
+            {typeof result.cost_cents === "number" && result.cost_cents > 0
+              ? ` · 花了 ${(result.cost_cents / 100).toFixed(3)} 美元`
+              : ""}
+            {result.idempotent ? "（60 秒内重复请求，返回上一次结果）" : ""}
+          </p>
+          {result.scanned && result.kept === 0 && !result.idempotent && (
+            <p className="mt-8 text-meta text-fg-quiet">
+              这次没扫出匹配的。换个节点再来一次？或者产品描述写得太泛，AI 没法判断相关性 ——
+              到 <a href="/products/new" className="underline-offset-4 hover:underline hover:text-fg">/products/new</a> 改一下。
+            </p>
+          )}
+        </div>
       )}
     </form>
   );
