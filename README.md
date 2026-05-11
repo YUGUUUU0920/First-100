@@ -73,11 +73,32 @@ scripts/smoke.ts           AI pipeline 端到端 smoke test（脱离 server / br
 ## 测一下整套 pipeline
 
 ```bash
-bun run smoke
+bun run smoke            # 5 check：V2EX → Haiku → Sonnet → 海报 (~$0.02)
+bun run eval             # Haiku 过滤 precision/recall vs docs/eval/*.md 标签
+bun x tsc --noEmit       # typecheck
+bun run build            # full Next.js build
 ```
 
-5 个 check：V2EX 抓帖 → Haiku 过滤 → Sonnet 写破冰 + critique → 海报渲染（active + empty）。
-跑一次成本 ~$0.02。CI 上不要默认开（API 成本累积）。
+`bun run smoke` 改 prompt 后必跑。`bun run eval` 等你在 `docs/eval/relevance-filter-samples.md` 标完 ≥15 relevant + ≥15 not_relevant 后再跑。CI 上不要默认开（API 成本累积）。
+
+## Founder-only 仪表盘 `/admin`
+
+设 `FOUNDER_EMAILS=your@email,co@email` 在 `.env.local`，然后访问 `/admin` 看 5 个观测面板：
+- 每用户 7 天扫描次数 + 累计 AI 成本
+- 本周 outreach 失败率
+- 激活漏斗（signup → product → scan → sent → replied）
+- 最近周报海报（cron 成功率代理）
+- 邮件送达率（待 Resend webhook 接好）
+
+非 allowlist 访问 → 404（不暴露存在）。
+
+## Prospect 列表过滤
+
+Dashboard URL 参数：
+- `?min_score=6` 只看 AI 相关性 ≥6/10 的（0 / 4 / 6 / 8 四档）
+- `?status=awaiting_reply` 只看已发未回的（`all` / `not_sent` / `awaiting_reply` / `replied` / `converted`）
+
+每个过滤项旁显示实时计数，从左到右读 = 当下的 funnel 转化率。
 
 ## 贡献 / 改 prompt
 
