@@ -44,7 +44,7 @@ export async function updateSession(request: NextRequest) {
 
   // Protected routes: any path under these prefixes requires a logged-in user.
   const path = request.nextUrl.pathname;
-  const protectedPrefixes = ["/dashboard", "/products"];
+  const protectedPrefixes = ["/dashboard", "/products", "/admin"];
   const isProtected = protectedPrefixes.some((p) => path === p || path.startsWith(`${p}/`));
   if (isProtected && !user) {
     const redirect = request.nextUrl.clone();
