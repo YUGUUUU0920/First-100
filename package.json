@@ -9,7 +9,8 @@
     "start": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "smoke": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/smoke.ts"
+    "smoke": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/smoke.ts",
+    "eval": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/eval-relevance.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
