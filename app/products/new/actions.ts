@@ -56,11 +56,29 @@ export async function createProduct(
 
   // Write via admin client — bypasses RLS.  See lib/supabase/admin.ts for rationale.
   const admin = createAdminClient();
+
+  // Dedupe by case-insensitive display_name within this user's products. Without
+  // this, founders end up with "First 100" "first 100" "First100" all in their
+  // product switcher and don't know which one they scanned last.
+  const trimmedName = parsed.data.display_name;
+  const { data: existing } = await admin
+    .from("products")
+    .select("id, display_name")
+    .eq("user_id", user.id)
+    .ilike("display_name", trimmedName);
+  if (existing && existing.length > 0) {
+    return {
+      status: "error",
+      field: "display_name",
+      message: `你已经有一个叫「${existing[0]!.display_name}」的产品了。换个名字，或者直接去 dashboard 找它。`,
+    };
+  }
+
   const { data, error } = await admin
     .from("products")
     .insert({
       user_id: user.id,
-      display_name: parsed.data.display_name,
+      display_name: trimmedName,
       description: parsed.data.description,
       target_persona: parsed.data.target_persona,
     })

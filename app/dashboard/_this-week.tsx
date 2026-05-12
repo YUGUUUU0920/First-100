@@ -58,12 +58,17 @@ export function ThisWeek({ stats, streak }: ThisWeekProps) {
 
       {hasActivity ? (
         <p className="mt-16 text-body lg:text-body-lg text-fg-muted">
-          你发了 <Stat n={stats.sent} /> 条 · 回了 <Stat n={stats.replied} /> 条 · 转化{" "}
-          <Stat n={stats.converted} /> 个
+          你发出了 <Stat n={stats.sent} /> 条破冰 · 收到 <Stat n={stats.replied} /> 条回复 · 转化{" "}
+          <Stat n={stats.converted} /> 个真实用户
         </p>
       ) : (
         <p className="mt-16 text-body text-fg-muted">
-          这周还没标过 sent。本周已加 {stats.prospects_added} 个 prospect。复制 → 发出去 → 回来标。
+          本周还没记录任何"已发送"。
+          {stats.prospects_added > 0 ? (
+            <> 下面已经有 {stats.prospects_added} 个 AI 找到的潜在用户，复制破冰话术发出去之后，记得回来点"已发送 ↗"按钮。</>
+          ) : (
+            <> 用下面的"扫社区"或"粘贴帖子"功能，让 AI 给你找第一个潜在用户。</>
+          )}
         </p>
       )}
 
@@ -73,8 +78,9 @@ export function ThisWeek({ stats, streak }: ThisWeekProps) {
           onClick={generatePoster}
           disabled={busy}
           variant="ghost"
+          title="生成一张本周战绩的图片，可以发即刻动态 / 朋友圈"
         >
-          {busy ? "渲染中..." : "生成本周海报"}
+          {busy ? "渲染中..." : "生成本周战绩图（发动态用）"}
         </Button>
 
         {posterUrl && (

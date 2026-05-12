@@ -79,7 +79,7 @@ export function OutreachActions({
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      showToast("已复制 · 去贴到 V2EX / 即刻", "ok");
+      showToast("已复制 · 去原帖底下粘贴回复", "ok");
     } catch {
       showToast("复制失败 · 浏览器拦了", "err");
     }
@@ -121,12 +121,12 @@ export function OutreachActions({
       addOptimisticEvent("sent");
       const result = await markOutreach(outreach.id, "sent");
       if (!result.ok) {
-        setErrorMsg(`标 sent 失败：${result.error}`);
+        setErrorMsg(`标「已发送」失败：${result.error}`);
       }
     });
 
     showToast(
-      hasLink ? "已复制 + 标 sent · 新 tab 打开了" : "已复制 + 标 sent",
+      hasLink ? "已复制 + 标「已发送」 · 原帖在新标签打开了" : "已复制 + 标「已发送」",
       "ok"
     );
     void copied; // satisfy eslint unused

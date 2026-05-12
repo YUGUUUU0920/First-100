@@ -140,14 +140,14 @@ export function PasteForm({ productId, platform }: PasteFormProps) {
       )}
       {state?.ok && (
         <p className="mt-16 text-sub text-fg-muted">
-          ✓ 已加进列表
-          {state.outreach_status === "ai_failed" && "（AI 生成没成功，但 prospect 已存）"}
+          ✓ 已加进潜在用户列表
+          {state.outreach_status === "ai_failed" && "（AI 写破冰话术没成功，但人已经记录了；可以点列表里的「重写」按钮重试）"}
         </p>
       )}
 
       <div className="mt-24">
         <Button type="submit" disabled={pending} variant="primary">
-          {pending ? "AI 写中..." : "加到列表"}
+          {pending ? "AI 写破冰话术中..." : "加到列表 + AI 写破冰话术"}
         </Button>
       </div>
     </form>

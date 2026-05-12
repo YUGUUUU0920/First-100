@@ -28,6 +28,22 @@ const SOURCE_LABEL: Record<Source, string> = {
   "github-cn": "GitHub 中文",
 };
 
+// What to put on the input label — source-specific, no jargon.
+const INPUT_LABEL: Record<Source, string> = {
+  v2ex: "扫 V2EX 哪个节点？",
+  juejin: "扫掘金哪个分类？",
+  sspai: "扫少数派哪个标签？",
+  "github-cn": "看多长时间内的趋势？",
+};
+
+// Helper sentence beneath the label — what the input means in plain Chinese.
+const INPUT_HELP: Record<Source, string> = {
+  v2ex: "节点 = V2EX 网址 v2ex.com/go/ 后面那段。比如「分享创造」节点的 URL 是 v2ex.com/go/create，就填 create。",
+  juejin: "掘金把内容分成 AI / 后端 / 前端 三类，填一个英文 key。",
+  sspai: "少数派矩阵区的标签，直接填中文，比如「开发」「AI」「创业」。",
+  "github-cn": "daily = 今天最热 · weekly = 本周最热 · monthly = 本月最热。",
+};
+
 const SUGGESTIONS: Record<Source, readonly string[]> = {
   v2ex: [
     "create",      // 分享创造 — indie 主力
@@ -44,11 +60,11 @@ const SUGGESTIONS: Record<Source, readonly string[]> = {
   "github-cn": ["daily", "weekly", "monthly"],
 };
 
-const SOURCE_HINT: Record<Source, string> = {
-  v2ex: "v2ex.com/go/<节点名>",
-  juejin: "juejin.cn/recommend?cate=<分类>",
-  sspai: "sspai.com/matrix?tag=<标签>",
-  "github-cn": "github.com/trending?since=<daily|weekly|monthly>",
+const SUGGESTION_LABEL: Partial<Record<Source, string>> = {
+  v2ex: "试这些常用节点：",
+  juejin: "三个分类全在这：",
+  sspai: "常用标签：",
+  "github-cn": "选时间窗口：",
 };
 
 const SOURCE_DEFAULT: Record<Source, string> = {
@@ -111,39 +127,43 @@ export function ScanForm({ productId }: ScanFormProps) {
 
   return (
     <form onSubmit={onSubmit} className="rule pt-32 mt-48">
-      <h2 className="text-h2 font-semibold text-fg">扫一次</h2>
+      <h2 className="text-h2 font-semibold text-fg">扫社区找潜在用户</h2>
       <p className="mt-12 text-sub text-fg-muted">
-        从社区抓最新 20 帖，AI 过滤出可能的潜在用户。
+        从中文社区抓最新 20 帖 → AI 挑出真的在讨论你产品相关问题的人 → 给每个写一句中文破冰话术。
+        大约 15 秒。
       </p>
 
-      {/* Source picker — segmented buttons. Source-agnostic label/hint */}
-      <div className="mt-24 inline-flex border border-rule rounded-md overflow-hidden flex-wrap">
-        {(["v2ex", "juejin", "sspai", "github-cn"] as const).map((s) => {
-          const active = source === s;
-          return (
-            <button
-              key={s}
-              type="button"
-              disabled={isWorking}
-              onClick={() => setSourceWithDefault(s)}
-              className={[
-                "text-sub px-16 py-8 transition-colors",
-                active ? "bg-fg text-bg" : "text-fg-muted hover:bg-fg/[0.06]",
-                "disabled:opacity-50",
-              ].join(" ")}
-            >
-              {SOURCE_LABEL[s]}
-            </button>
-          );
-        })}
+      {/* Source picker */}
+      <div className="mt-24">
+        <p className="text-sub text-fg-muted mb-8">1. 在哪里扫？</p>
+        <div className="inline-flex border border-rule rounded-md overflow-hidden flex-wrap">
+          {(["v2ex", "juejin", "sspai", "github-cn"] as const).map((s) => {
+            const active = source === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={isWorking}
+                onClick={() => setSourceWithDefault(s)}
+                className={[
+                  "text-sub px-16 py-8 transition-colors",
+                  active ? "bg-fg text-bg" : "text-fg-muted hover:bg-fg/[0.06]",
+                  "disabled:opacity-50",
+                ].join(" ")}
+              >
+                {SOURCE_LABEL[s]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-16 flex flex-col sm:flex-row gap-12 items-stretch sm:items-end">
-        <div className="flex-1">
-          <label htmlFor="node" className="block text-sub text-fg-muted mb-8">
-            {source === "github-cn" ? "时段" : "节点 / 分类 / 标签"}
-            <span className="text-fg-quiet"> · {SOURCE_HINT[source]}</span>
-          </label>
+      <div className="mt-24">
+        <label htmlFor="node" className="block text-sub text-fg-muted mb-8">
+          2. {INPUT_LABEL[source]}
+        </label>
+        <p className="text-meta text-fg-quiet mb-8">{INPUT_HELP[source]}</p>
+        <div className="flex flex-col sm:flex-row gap-12 items-stretch sm:items-end">
           <input
             id="node"
             name="node"
@@ -157,23 +177,23 @@ export function ScanForm({ productId }: ScanFormProps) {
             disabled={isWorking}
             required
             placeholder={SOURCE_DEFAULT[source]}
-            className="w-full px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 font-mono"
+            className="flex-1 px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 font-mono"
           />
+          <Button type="submit" disabled={isWorking} variant="primary">
+            {isWorking ? "扫描中..." : "扫一次"}
+          </Button>
         </div>
-        <Button type="submit" disabled={isWorking} variant="primary">
-          {isWorking ? "扫描中..." : "扫一次"}
-        </Button>
       </div>
 
-      <div className="mt-16 flex flex-wrap gap-8">
-        <span className="text-meta text-fg-quiet">推荐：</span>
+      <div className="mt-16 flex flex-wrap gap-8 items-center">
+        <span className="text-meta text-fg-quiet">{SUGGESTION_LABEL[source] ?? "试这些："}</span>
         {suggestions.map((n) => (
           <button
             key={n}
             type="button"
             disabled={isWorking}
             onClick={() => setNode(n)}
-            className="text-meta text-fg-muted hover:text-fg underline-offset-4 hover:underline disabled:opacity-50"
+            className="text-meta text-fg-muted hover:text-fg underline-offset-4 hover:underline disabled:opacity-50 font-mono"
           >
             {n}
           </button>
@@ -235,10 +255,10 @@ function ScanProgress() {
   }, []);
 
   const steps = [
-    { label: "抓 V2EX 节点列表", until: 1 },
-    { label: "Haiku 过滤相关性（并发 ~20 条）", until: 2 },
-    { label: "Sonnet 写中文破冰 + critique", until: 3 },
-    { label: "写入数据库", until: 4 },
+    { label: "正在抓最新的帖子", until: 1 },
+    { label: "AI 在过滤真的相关的（约 20 条）", until: 2 },
+    { label: "AI 在给每条写中文破冰话术", until: 3 },
+    { label: "保存到你的列表", until: 4 },
   ];
 
   return (

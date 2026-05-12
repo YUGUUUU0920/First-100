@@ -23,7 +23,7 @@ export function NewProductForm() {
     state.status === "error" && !state.field ? state.message : null;
 
   return (
-    <form action={formAction} className="w-full max-w-prose">
+    <form action={formAction} noValidate className="w-full max-w-prose">
       <motion.h1
         {...fadeUp(0)}
         className="text-h1 lg:text-h1-lg font-bold text-fg"
@@ -34,7 +34,8 @@ export function NewProductForm() {
         {...fadeUp(120)}
         className="mt-16 text-body text-fg-muted"
       >
-        AI 会根据这段描述去判断哪些 V2EX / 即刻帖子的作者可能是你的潜在用户。写得越具体，过滤越准。
+        AI 用这段描述去判断 V2EX·掘金·少数派·GitHub 中文榜上哪些发帖人可能是你的潜在用户。
+        写得越具体，过滤越准。
       </motion.p>
 
       <motion.div {...fadeUp(240)} className="mt-48">
@@ -71,7 +72,7 @@ export function NewProductForm() {
           maxLength={500}
           rows={6}
           disabled={pending}
-          placeholder="我做的是一个帮 indie hacker 找前 100 个用户的工具。输入产品描述，AI 自动扫 V2EX / 即刻最近 30 天的帖子，过滤出真的在讨论冷启动 / 找不到用户 / 早期分发的人，给每个写一句中文个性化破冰..."
+          placeholder="我做的是一个帮中文 indie hacker 找前 100 个用户的工具。输入产品描述，AI 自动扫 V2EX·掘金·少数派·GitHub 中文榜最近的帖子，过滤出真的在讨论冷启动 / 找不到用户 / 早期分发的人，给每个写一句中文个性化破冰..."
           className="w-full px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 resize-none font-sans"
         />
         {errorFor("description") && (

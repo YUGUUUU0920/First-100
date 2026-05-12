@@ -27,9 +27,10 @@ export function ProspectList({ prospects }: ProspectListProps) {
   if (prospects.length === 0) {
     return (
       <div className="rule pt-32 mt-48">
-        <h2 className="text-h2 font-semibold text-fg">Prospects</h2>
+        <h2 className="text-h2 font-semibold text-fg">潜在用户列表</h2>
         <p className="mt-16 text-body text-fg-muted">
-          准备好了？扫一次 V2EX / 掘金，或者粘一条即刻 / 小红书。5 分钟出 30 个潜在用户。
+          还是空的。用上面"扫社区"或"粘贴帖子"开始 —— 5 分钟能出 30 个，
+          每个都带一句已经写好的中文破冰话术。
         </p>
       </div>
     );
@@ -38,8 +39,8 @@ export function ProspectList({ prospects }: ProspectListProps) {
   return (
     <div className="rule pt-32 mt-48">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-h2 font-semibold text-fg">Prospects</h2>
-        <span className="text-meta text-fg-quiet">{prospects.length} 条</span>
+        <h2 className="text-h2 font-semibold text-fg">潜在用户列表</h2>
+        <span className="text-meta text-fg-quiet">{prospects.length} 个</span>
       </div>
       <ul className="mt-16">
         {prospects.map((p, i) => (

@@ -87,6 +87,7 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
   const prospects = rawProspects ? filterByStatus(rawProspects, statusFilter) : [];
 
   const filterCounts = rawProspects ? countByStatus(rawProspects) : null;
+  const hasAnyProspects = (rawProspects?.length ?? 0) > 0;
 
   // Weekly stats + streak — feeds the "本周" panel and the poster generator.
   const [weeklyStats, streak] = await Promise.all([
@@ -104,6 +105,8 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
           allProducts={products}
           streak={streak}
         />
+
+        {!hasAnyProspects && <OnboardingStrip />}
 
         <ThisWeek stats={weeklyStats} streak={streak} />
 
@@ -146,17 +149,19 @@ function DashboardHeader({
   streak: number;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-24">
+    <div className="flex flex-col gap-16 sm:flex-row sm:items-start sm:justify-between sm:gap-24">
       <div className="min-w-0">
-        <h1 className="text-h1 lg:text-h1-lg font-bold text-fg truncate">
+        <p className="text-meta text-fg-quiet">你正在为这个产品找用户</p>
+        <h1 className="mt-4 text-h1 lg:text-h1-lg font-bold text-fg truncate">
           {activeProduct.display_name}
         </h1>
-        <p className="mt-12 text-meta text-fg-quiet">
-          登录身份：{userEmail}
-          {streak > 0 && <> · 🟢 已连续 {streak} 周发出 outreach</>}
-        </p>
+        {streak > 0 && (
+          <p className="mt-8 text-meta text-fg-muted">
+            🟢 已连续 {streak} 周有人收到你的破冰话术
+          </p>
+        )}
         {allProducts.length > 1 && (
-          <p className="mt-12 text-meta text-fg-quiet">
+          <p className="mt-8 text-meta text-fg-quiet">
             切换产品：
             {allProducts.map((p, i) => (
               <span key={p.id}>
@@ -175,15 +180,44 @@ function DashboardHeader({
             ))}
           </p>
         )}
-        <p className="mt-8 text-meta text-fg-quiet">
-          <Link href="/products/new" className="hover:text-fg underline-offset-4 hover:underline">
-            + 加一个产品
-          </Link>
-          <span className="mx-8">·</span>
-          按 <kbd className="px-4 py-1 text-meta font-mono border border-rule rounded">?</kbd> 看键盘快捷键
-        </p>
       </div>
-      <SignOutButton />
+      <div className="flex flex-col items-start sm:items-end gap-8 shrink-0">
+        <Link href="/products/new">
+          <Button variant="ghost">+ 添加产品</Button>
+        </Link>
+        <p className="text-meta text-fg-quiet">
+          {userEmail}
+          <span className="mx-8">·</span>
+          按 <kbd className="px-4 py-1 text-meta font-mono border border-rule rounded">?</kbd> 看快捷键
+        </p>
+        <SignOutButton />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * First-run onboarding strip — shown when the user has 0 prospects on this
+ * product. Lays out the 3-step loop in plain Chinese so first-time users
+ * know which form to use first.
+ */
+function OnboardingStrip() {
+  return (
+    <div className="mt-32 px-24 py-20 bg-accent/[0.06] border border-accent/30 rounded-md">
+      <p className="text-sub text-fg font-semibold">第一次用？三步走</p>
+      <ol className="mt-12 space-y-8 text-sub text-fg-muted list-decimal pl-20 marker:text-accent marker:font-semibold">
+        <li>
+          下面"扫社区找潜在用户" → 选个社区（V2EX / 掘金 / 少数派 / GitHub 中文）→ 点"扫一次"。
+          约 15 秒，AI 会找出真的在讨论你产品相关问题的人。
+        </li>
+        <li>
+          往下滚看 AI 找到的潜在用户列表。每个都带一句已经写好的中文破冰话术。
+        </li>
+        <li>
+          点"复制 + 去回帖 ↗" → 在原帖底下回复 → 回来点"已发送"按钮。
+          就这样，没了。
+        </li>
+      </ol>
     </div>
   );
 }
@@ -194,18 +228,21 @@ function NoProductsState({ userEmail }: { userEmail: string }) {
       <Nav />
       <section className="flex-1 flex items-center justify-center px-24 py-96">
         <div className="text-center max-w-prose">
-          <h1 className="text-h1 lg:text-h1-lg font-bold text-fg">
+          <p className="text-meta text-fg-quiet">{userEmail}</p>
+          <h1 className="mt-12 text-h1 lg:text-h1-lg font-bold text-fg">
             先告诉我你做的是什么
           </h1>
           <p className="mt-24 text-body text-fg-muted">
-            登录身份：{userEmail}
+            写一段产品描述 + 目标用户画像。
+            AI 会用它判断 V2EX / 掘金 / 少数派 / GitHub 中文榜上哪些帖子的作者
+            可能是你的潜在用户。
           </p>
-          <p className="mt-16 text-body text-fg-muted">
-            创建一个产品后，AI 才能知道哪些 V2EX / 即刻帖子的作者可能是你的潜在用户。
+          <p className="mt-16 text-sub text-fg-quiet">
+            一个账号可以创建多个产品。每个产品独立扫描、独立战绩。
           </p>
           <div className="mt-48 flex justify-center">
             <Link href="/products/new">
-              <Button variant="primary">创建产品</Button>
+              <Button variant="primary">开始 → 创建第一个产品</Button>
             </Link>
           </div>
         </div>
