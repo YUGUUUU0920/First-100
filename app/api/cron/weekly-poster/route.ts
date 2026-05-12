@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { renderWeeklyPoster } from "@/lib/poster";
 import { getStreakWeeks, getWeeklyStats, shanghaiWeekBounds } from "@/lib/weekly-stats";
+
+/**
+ * Constant-time compare for the bearer-token check below. Plain `===` short-
+ * circuits on the first mismatching byte, which is theoretically exploitable
+ * to leak the secret one byte at a time over many requests. Negligible for a
+ * 32-byte hex secret, but cheap to do right.
+ *
+ * Length must match before timingSafeEqual — its own length check throws.
+ */
+function safeStringEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return timingSafeEqual(aBuf, bBuf);
+}
 
 const POSTERS_BUCKET = "posters";
 
@@ -26,7 +42,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-  if (auth !== `Bearer ${expected}`) {
+  if (!safeStringEqual(auth, `Bearer ${expected}`)) {
     return NextResponse.json({ error: { code: "unauthorized" } }, { status: 401 });
   }
 

@@ -13,9 +13,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 ### P2 — quality-of-life
 
 - [ ] **Reintroduce daily scan limit + idempotency window** when first non-founder user signs up. CEO plan §cost & abuse bounds.
-- [ ] **Constant-time CRON_SECRET compare** in /api/cron/weekly-poster. Negligible attack surface (32-byte hex), but easy to fix.
 - [ ] **Dedupe outreach_events on (outreach_id, status).** Currently double-clicking "已发送" inserts 2 rows → weekly stats inflate. UI disables button on event reach, but races possible. Either DB unique constraint + ON CONFLICT, or pre-insert SELECT.
-- [ ] **Edge runtime + `preferredRegion = ['hkg1']`** on /api/scan and /api/poster/generate before Vercel deploy. Turned off in dev because Next.js doesn't surface non-`NEXT_PUBLIC_` env to Edge in dev mode.
 
 ### P3 — nice to have
 
@@ -38,6 +36,9 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 
 (Most recent at top. Trim manually when this section grows past 30 items.)
 
+- 2026-05-12: **Ship to prod** — Vercel HKG/SIN edge at https://yourfirst100.co (custom Cloudflare-registered apex + www, SSL auto-provisioned). Painful path: bun-install hang in IAD → switched to npm; npm picked up local Alibaba intranet registry from `~/.npmrc` → committed project-level `.npmrc` pinning npmjs.org; SITE_URL env initially missing → og:image leaked localhost; first-deploy auto-alias was the throwaway `first-100-navy.vercel.app` instead of customer domain.
+- 2026-05-12: Constant-time CRON_SECRET compare (timingSafeEqual)
+- 2026-05-12: Edge → Node runtime + `preferredRegion = ['hkg1']` on /api/scan and /api/poster/generate (Edge didn't surface env reliably; HKG region pin via vercel.json instead)
 - 2026-05-11: `regenerateOutreach` server action + UI button — per-prospect retry
 - 2026-05-11: `/admin` observability page (5 panels, founder-only via FOUNDER_EMAILS)
 - 2026-05-11: `bun run eval` runner against labeled samples
