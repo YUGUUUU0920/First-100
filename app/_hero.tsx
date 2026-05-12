@@ -36,7 +36,7 @@ export function Hero() {
         {...fadeUp(120)}
         className="mt-24 lg:mt-32 text-body lg:text-body-lg text-fg-muted max-w-prose"
       >
-        即刻 + V2EX 一次扫描 · AI 写个性化破冰 · 你自己按发送
+        扫 V2EX·掘金·少数派·GitHub 中文榜 · 即刻·小红书可粘贴 · AI 写中文破冰，你按发送
       </motion.p>
 
       <motion.div {...fadeUp(280)} className="mt-48 lg:mt-64">
