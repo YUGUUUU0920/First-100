@@ -1,9 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["hkg1"],
-  "functions": {
-    "app/api/**/*": {
-      "runtime": "edge"
-    }
-  }
+  "regions": ["hkg1"]
 }
