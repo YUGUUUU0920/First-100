@@ -6,7 +6,8 @@ AI 帮中文 indie hacker 找前 100 个用户。
 
 - 📄 设计：`DESIGN.md`（视觉 + interaction states）
 - 📐 CEO plan：`~/.gstack/projects/YUGUUUU0920-First-100/ceo-plans/2026-04-22-first-100-chinese-pivot.md`
-- 🏗️  状态：v0 Lane A 完。可登录 / 创建产品 / 扫 V2EX / 即刻粘贴 / Sonnet outreach / 标 sent-replied-converted / 周报海报 / streak counter。pre-deploy。
+- 🏗️  状态：v0 Lane A 完。可登录 / 创建产品 / 扫 V2EX·掘金·少数派·GitHub-CN / 即刻·小红书粘贴 / Sonnet outreach + Haiku critique / 标 sent-replied-converted / 周报海报 / streak counter
+- 🌐 线上：**https://yourfirst100.co** — Vercel Production，HKG/SIN edge
 
 ## 原则（不可违反）
 

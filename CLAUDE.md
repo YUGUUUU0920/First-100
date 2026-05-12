@@ -9,7 +9,7 @@
 - **成功指标 = 当周发送后被回复数。** 不是 DAU、不是页面 PV
 - **Founder 是 User #1。**如果 founder 自己不每周用这个工具拉用户，产品死
 
-**当前状态（2026-05-09）：** v0 Lane A 完。登录 / 创建产品 / 扫 V2EX / 即刻粘贴 / Sonnet outreach + Haiku critique / 复制 + sent/replied/converted 标记 / 周报海报 / streak counter 全通。pre-deploy。详见 `README.md`。
+**当前状态（2026-05-12）：** v0 Lane A 完 + 已上线 https://yourfirst100.co（Vercel HKG/SIN edge）。登录 / 创建产品 / 扫 V2EX·掘金·少数派·GitHub-CN / 即刻·小红书粘贴 / Sonnet outreach + Haiku critique / 复制 + sent/replied/converted 标记 / 周报海报 / streak counter 全通。详见 `README.md`。
 
 **设计文档：** 在 `~/.gstack/projects/CC_idea/` 下。`/office-hours` 产出的 DRAFT。本项目初始化时软链接到了 `docs/design/`（见下）。
 
