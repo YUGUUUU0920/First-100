@@ -45,7 +45,10 @@ export function ProspectList({ prospects }: ProspectListProps) {
         {prospects.map((p, i) => (
           <li
             key={p.id}
-            className="rule py-24 first:border-t-0 first:pt-0 prospect-row"
+            id={`prospect-${p.id}`}
+            data-prospect-row
+            tabIndex={0}
+            className="rule py-24 first:border-t-0 first:pt-0 prospect-row focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-bg rounded-sm"
             // Cap index so a 50-row list doesn't take 2s to fully fade in.
             style={{ "--prospect-i": Math.min(i, 12) } as React.CSSProperties}
           >
@@ -92,7 +95,11 @@ function ProspectRow({ prospect }: { prospect: ProspectWithOutreach }) {
           {prospect.post_body.length > 160 ? "…" : ""}
         </p>
 
-        <OutreachBlock outreach={outreach} prospectId={prospectId} />
+        <OutreachBlock
+          outreach={outreach}
+          prospectId={prospectId}
+          sourceUrl={prospect.source_url}
+        />
       </div>
     </article>
   );
@@ -101,9 +108,11 @@ function ProspectRow({ prospect }: { prospect: ProspectWithOutreach }) {
 function OutreachBlock({
   outreach,
   prospectId,
+  sourceUrl,
 }: {
   outreach: OutreachWithEvents | undefined;
   prospectId: string;
+  sourceUrl: string;
 }) {
   if (!outreach) {
     return (
@@ -127,12 +136,11 @@ function OutreachBlock({
   const draft = outreach.final_chosen ?? outreach.draft_v1;
 
   return (
-    // card-soft = 1px hairline shadow instead of generic border outline.
-    // Pulls more weight from typography, less from chrome (per redesign skill).
     <EditableOutreach
       outreach={outreach}
       prospectId={prospectId}
       initialDraft={draft}
+      sourceUrl={sourceUrl}
     />
   );
 }

@@ -8,11 +8,18 @@ interface OutreachActionsProps {
   outreach: Outreach;
   events: OutreachEvent[];
   prospectId: string;
+  /** Where the founder will paste this — opens in a new tab on "去回帖". */
+  sourceUrl: string;
   /**
    * Optional getter so the parent (EditableOutreach) can return the live
    * textarea value, not the saved version. Falls back to the AI draft.
    */
   getTextToCopy?: () => string;
+}
+
+/** True when the URL is an http(s) link we can actually open (not a fake jike://). */
+function isExternalLink(url: string): boolean {
+  return /^https?:\/\//i.test(url);
 }
 
 const ALL_STATUSES: { key: OutreachStatus; label: string }[] = [
@@ -35,6 +42,7 @@ export function OutreachActions({
   outreach,
   events,
   prospectId,
+  sourceUrl,
   getTextToCopy,
 }: OutreachActionsProps) {
   const [, startTransition] = useTransition();
@@ -77,6 +85,53 @@ export function OutreachActions({
     }
   }
 
+  /**
+   * The 丝滑 path: one click → copy + open V2EX/掘金/etc tab + optimistic
+   * mark sent. Founder pastes & hits reply on the source platform, never
+   * needs to return to dashboard to remember marking sent.
+   *
+   * If the prospect is a paste-source (jike:// / xhs://), there's no real
+   * URL to open — degrade to plain copy.
+   */
+  async function onShip() {
+    const text = getTextToCopy ? getTextToCopy() : (outreach.final_chosen ?? outreach.draft_v1);
+    if (!text) return;
+
+    // 1. Copy
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      showToast("复制失败 · 试 Cmd+C", "err");
+      return;
+    }
+
+    // 2. Open source URL (if it's a real link).
+    const hasLink = isExternalLink(sourceUrl);
+    if (hasLink) {
+      // window.open without await — the popup may be blocked by some browsers
+      // if there's no direct user gesture; this onClick handler IS that gesture.
+      window.open(sourceUrl, "_blank", "noopener,noreferrer");
+    }
+
+    // 3. Optimistic mark sent.
+    setErrorMsg(null);
+    startTransition(async () => {
+      addOptimisticEvent("sent");
+      const result = await markOutreach(outreach.id, "sent");
+      if (!result.ok) {
+        setErrorMsg(`标 sent 失败：${result.error}`);
+      }
+    });
+
+    showToast(
+      hasLink ? "已复制 + 标 sent · 新 tab 打开了" : "已复制 + 标 sent",
+      "ok"
+    );
+    void copied; // satisfy eslint unused
+  }
+
   function onMark(status: OutreachStatus) {
     setErrorMsg(null);
     startTransition(async () => {
@@ -97,15 +152,43 @@ export function OutreachActions({
     });
   }
 
+  const hasLink = isExternalLink(sourceUrl);
+  const isSent = reached.has("sent");
+
   return (
     <div className="mt-12 flex flex-wrap items-center gap-8 relative">
+      {/* Primary action: copy + open + mark sent — the "丝滑" combo */}
+      <button
+        type="button"
+        onClick={onShip}
+        disabled={isSent}
+        data-action="ship"
+        className={[
+          "text-meta px-16 py-6 rounded-md transition-all duration-150 font-medium",
+          isSent
+            ? "bg-fg/[0.05] text-fg-quiet cursor-default"
+            : "bg-accent text-accent-fg hover:bg-accent-hover active:scale-[0.97]",
+        ].join(" ")}
+        title={
+          hasLink
+            ? "复制 + 打开源贴新 tab + 标 sent (Cmd+Enter)"
+            : "复制 + 标 sent (源贴是粘贴来的，无链接可开)"
+        }
+      >
+        {isSent
+          ? "✓ 已发送"
+          : hasLink
+            ? "复制 + 去回帖 ↗"
+            : "复制 + 标 sent"}
+      </button>
+
       <button
         type="button"
         onClick={onCopy}
-        className="text-meta px-12 py-6 border border-rule rounded-md hover:bg-fg hover:text-bg transition-colors"
-        title="复制 outreach 内容"
+        className="text-meta px-12 py-6 border border-rule rounded-md text-fg-muted hover:bg-fg hover:text-bg transition-colors"
+        title="只复制，不标 sent（如果只是想看 / 改）"
       >
-        复制
+        只复制
       </button>
 
       <button

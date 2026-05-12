@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Product } from "@/lib/supabase/types";
+import { KeyboardNav } from "./_keyboard-nav";
 import { PasteForm } from "./_paste-form";
 import { ProspectList, type ProspectWithOutreach } from "./_prospect-list";
 import {
@@ -128,6 +129,7 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
           </>
         )}
       </section>
+      <KeyboardNav />
     </main>
   );
 }
@@ -177,6 +179,8 @@ function DashboardHeader({
           <Link href="/products/new" className="hover:text-fg underline-offset-4 hover:underline">
             + 加一个产品
           </Link>
+          <span className="mx-8">·</span>
+          按 <kbd className="px-4 py-1 text-meta font-mono border border-rule rounded">?</kbd> 看键盘快捷键
         </p>
       </div>
       <SignOutButton />

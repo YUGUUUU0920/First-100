@@ -9,6 +9,7 @@ interface EditableOutreachProps {
   outreach: Outreach & { outreach_events: OutreachEvent[] };
   prospectId: string;
   initialDraft: string;
+  sourceUrl: string;
 }
 
 /**
@@ -22,6 +23,7 @@ export function EditableOutreach({
   outreach,
   prospectId,
   initialDraft,
+  sourceUrl,
 }: EditableOutreachProps) {
   const [text, setText] = useState(initialDraft);
   const [savedText, setSavedText] = useState(initialDraft);
@@ -111,6 +113,7 @@ export function EditableOutreach({
         outreach={outreach}
         events={outreach.outreach_events}
         prospectId={prospectId}
+        sourceUrl={sourceUrl}
         // Copy must read the LIVE textarea value, not the saved one — founder
         // expects "what I see is what gets copied" even before blur.
         getTextToCopy={() => text}
