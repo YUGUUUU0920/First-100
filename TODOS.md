@@ -4,6 +4,29 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 
 ## Active
 
+### P-1 — Founder personal decisions (block all engineering, post-codex review 2026-05-12)
+
+> Both items below are pre-conditions for the engineering work below. See
+> `~/.gstack/projects/YUGUUUU0920-First-100/ceo-plans/2026-05-12-post-launch-strategic-review.md`
+> § REVISION 1 for the full Codex challenge that surfaced these.
+
+- [ ] **P-1a · Founder full-time vs Alibaba 副业灰区 — decide within 3 months**. Alibaba 员工副业受《员工行为准则》约束，需要书面申报且不得与公司业务竞争。SaaS-type 副业在灰区。所有公开 dogfood / 即刻品牌账号 / Twitter build-in-public 类 picks 都假设这件事已经解决。不解决 → 全部 picks 无法执行。Deadline: 2026-08-12.
+- [ ] **P-1b · 数据合规审计 — 2 周内**. 评估 PIPL §41（个人信息处理需明确告知 + 单独同意）+ V2EX/即刻/小红书各自的 ToS。"抓陌生人帖子 + 用 AI 生成针对此人的破冰话术 + 卖给第三方" 这个业务模型在中国是否合法。需要 ~¥500-2000 找一个 IT 律师 1 小时咨询。不解决 → 跑到几百付费用户就关站。Deadline: 2026-05-26.
+
+### P0 — must-do once P-1 resolved (post-codex revised)
+
+- [ ] **Founder dogfood reframed**. 不是"周一 09:00 关门 30 min 吃狗粮"。而是 **用 First 100 给 First 100 自己拉前 50 个 paid 用户，过程公开（条件 P-1a 允许）或半匿名（条件 P-1a 不允许）**。一次解决 dogfood + 分发 + 信任三件事。原 review 把它们拆开丢了乘数。
+- [ ] **Outreach features vector 完整埋点**. `outreach_events.features` 从 `{source: "dashboard_button"}` 升级到 20+ 维度（post embedding via Voyage/Cohere, time_of_day, prospect_score, outreach_length, has_question_mark, has_product_mention, author_post_count_30d 等）。前提是 dogfood 真发生（否则护城河不存在）。~3 天 human / ~30 min CC.
+- [ ] **`bun run eval` against 30+30 labeled samples**. Haiku filter precision/recall。`docs/eval/relevance-filter-samples.md` 已有 9 个种子。Founder activity。
+- [ ] **Resend webhook → email_events 表**. 国内邮箱（QQ / 163 / 阿里云邮 / Gmail-CN）送达率监控。Magic link 可能根本到不了。30 min once Resend dashboard 配好。
+- [ ] **Converted feedback textarea + playbooks 表预留**. 替代社区版块（codex 同意社区否决）。用户标 `converted` 时弹一个可空 textarea "这条破冰为什么有效？"。攒 50 条后 `/playbooks` 精选页（不可发帖、不可评论）。
+
+### P1 — explore alongside P0 (30-60 天)
+
+- [ ] **微信手动收款 + 修正后的 ¥0 paid + 5 retention 目标**（不是 ¥495）. 30 天目标改成"5 个真实 retention 用户（送码）"。付费推到 day 60-90，先证明 retention。¥99 × 5 = ¥495 在 0 audience + 大厂在职不能公开的情况下数学上接近 0 概率（codex 算出来）。
+- [ ] **同时探索"代运营 / 培训 / 服务"非订阅变现路径**. 联系 5 个中文 indie 问 "愿意付 ¥2-5k/月让我帮你做 outreach 吗"。订阅模型在中文 indie 圈白嫖文化下 LTV 可能只 ¥40-80，订阅 ceiling 远低于服务模式。Codex 提出，CEO review 原版漏了。
+- [ ] **即刻品牌账号 + auto-share weekly poster**. 仅在 P-1a 全职决策完成后执行（否则 reputational 风险高）。注册 @first100 即刻账号 → 周一 cron 跑完 weekly poster → OAuth auto-post 到 founder 即刻 → 转发到品牌账号。
+
 ### P1 — block first non-founder user
 
 - [ ] **Playwright E2E for the core flow.** Login → create product → scan → see outreach → mark sent → see streak. CEO plan estimated 1.5 CC-day. Currently 0 test files; relying on `bun run smoke` (AI pipeline only) leaves dashboard interactions, RLS edges, Server Action edges uncovered.
