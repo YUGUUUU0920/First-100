@@ -60,7 +60,7 @@ export function LoginForm() {
   }
 
   return (
-    <form action={formAction} className="w-full max-w-headline text-center">
+    <form action={formAction} noValidate className="w-full max-w-headline text-center">
       {next && <input type="hidden" name="next" value={next} />}
       <motion.h1
         {...fadeUp(0)}
