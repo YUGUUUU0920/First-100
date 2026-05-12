@@ -17,10 +17,8 @@ const SIGNED_URL_TTL_SEC = 30 * 24 * 3600; // 30 days
  * Idempotent: overwrites <user_id>/<iso-week>.png so the user can refresh
  * the poster after each new sent/replied/converted event.
  *
- * Edge runtime in prod (HKG region) so the @vercel/og render + upload
- * happens close to Supabase Storage edges. nodejs in dev — see /api/scan.
+ * Runtime = Node (default), HKG region pinned via vercel.json — see /api/scan.
  */
-export const runtime = process.env.NODE_ENV === "production" ? "edge" : "nodejs";
 export const preferredRegion = ["hkg1"];
 
 export async function POST(request: Request) {

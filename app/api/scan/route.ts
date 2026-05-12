@@ -32,11 +32,11 @@ import {
  * user_id is derived from the user-cookie client and trusted because it came
  * from `getUser()` server-side.
  *
- * Edge runtime + HKG region required so Anthropic API is reachable from
- * China-mainland users without VPN. Auto-switches to nodejs in dev because
- * Next.js dev doesn't surface non-NEXT_PUBLIC_ env vars to the Edge runtime.
+ * Runtime = Node (default); HKG region pinned globally via vercel.json so
+ * the function runs close to Anthropic API edges for China-mainland users.
+ * Node runtime over Edge because /api/scan does up to 60s of Promise.all
+ * Claude calls; Edge tops out at 30s on Hobby plan.
  */
-export const runtime = process.env.NODE_ENV === "production" ? "edge" : "nodejs";
 export const preferredRegion = ["hkg1"];
 
 const scanRequestSchema = z.object({
