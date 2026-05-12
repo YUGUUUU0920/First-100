@@ -32,11 +32,12 @@ import {
  * user_id is derived from the user-cookie client and trusted because it came
  * from `getUser()` server-side.
  *
- * NOTE: when deploying to Vercel, re-add `export const runtime = "edge"` and
- * `export const preferredRegion = ["hkg1"]` so Anthropic is reachable from
- * China-mainland users without VPN. Edge is OFF in dev because Next.js dev
- * doesn't reliably surface non-NEXT_PUBLIC_ env vars to the Edge runtime.
+ * Edge runtime + HKG region required so Anthropic API is reachable from
+ * China-mainland users without VPN. Auto-switches to nodejs in dev because
+ * Next.js dev doesn't surface non-NEXT_PUBLIC_ env vars to the Edge runtime.
  */
+export const runtime = process.env.NODE_ENV === "production" ? "edge" : "nodejs";
+export const preferredRegion = ["hkg1"];
 
 const scanRequestSchema = z.object({
   product_id: z.string().uuid(),
