@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["hkg1"]
+  "regions": ["hkg1"],
+  "installCommand": "npm install --no-audit --no-fund"
 }
