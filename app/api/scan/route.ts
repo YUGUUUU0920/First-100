@@ -55,7 +55,42 @@ const HAIKU_OUTPUT_USD_PER_MTOK = 5.0;
 const SONNET_INPUT_USD_PER_MTOK = 3.0;
 const SONNET_OUTPUT_USD_PER_MTOK = 15.0;
 
+/**
+ * CSRF defense-in-depth: reject requests whose Origin / Referer header is not
+ * our own site. Server Actions get this for free via Next.js; route handlers
+ * don't. Same-Site=Lax cookies block most cross-site POSTs, but explicit
+ * origin check closes subdomain / cookie-confusion edge cases.
+ *
+ * Returns null if origin is OK, else a 403 response.
+ */
+function originGuard(request: NextRequest): NextResponse | null {
+  const origin = request.headers.get("origin") ?? request.headers.get("referer");
+  if (!origin) {
+    // No origin header at all — server-to-server call, allow (cron etc.).
+    // Route is auth-gated so this isn't bypass-able by unauthenticated users.
+    return null;
+  }
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return NextResponse.json({ error: { code: "bad_origin" } }, { status: 403 });
+  }
+  const siteHost = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost").host;
+  if (originHost !== siteHost) {
+    return NextResponse.json(
+      { error: { code: "bad_origin", message: `origin ${originHost} not allowed` } },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
+  // 0. CSRF defense — reject cross-origin POSTs.
+  const csrfBlock = originGuard(request);
+  if (csrfBlock) return csrfBlock;
+
   // 1. Auth via user cookie client.
   const userClient = await createClient();
   const {
@@ -63,6 +98,31 @@ export async function POST(request: NextRequest) {
   } = await userClient.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: { code: "unauthorized" } }, { status: 401 });
+  }
+
+  // 1.5. Rate limit — count this user's `scans` rows in the last hour.
+  // DB-based instead of Upstash to avoid an external dep on day 1. Each scan
+  // costs ~$0.02 in Claude tokens; cap at SCAN_LIMIT_PER_HOUR per user blocks
+  // the runaway-bot scenario. Founder can scan ~5 nodes per session manually
+  // and stay well under 10/hour.
+  const SCAN_LIMIT_PER_HOUR = 10;
+  const _admin_rl = createAdminClient();
+  const oneHourAgo = new Date(Date.now() - 3600_000).toISOString();
+  const { count: recentScanCount } = await _admin_rl
+    .from("scans")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("started_at", oneHourAgo);
+  if ((recentScanCount ?? 0) >= SCAN_LIMIT_PER_HOUR) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "rate_limit",
+          message: `每小时最多 ${SCAN_LIMIT_PER_HOUR} 次扫描。等一会再来，或者用粘贴源继续。`,
+        },
+      },
+      { status: 429, headers: { "retry-after": "3600" } }
+    );
   }
 
   // 2. Parse + validate body.
