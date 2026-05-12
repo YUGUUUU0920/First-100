@@ -22,6 +22,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 - [ ] **`/admin` query #5 (Resend deliverability)** — see P1.
 - [ ] **More gracefully handle Sonnet runaway > OUTREACH_HARD_CAP.** Currently marked ai_failed. Could try a "trim and re-critique" pass.
 - [ ] **Per-prospect feature vector capture.** outreach_events.features is currently `{ source: "dashboard_button" }`. CEO plan §data flywheel wants full feature vector at mark-time so the v2 ranking model has training data.
+- [ ] **Flesh out /pricing and /blog.** Both are one-sentence pages — visitor bounce risk. /pricing needs 3-feature comparison + CTA. /blog needs at least one real post (or hide the link until ready). Found by /qa on prod 2026-05-12 as ISSUE-003.
 
 ## Deferred
 
@@ -36,6 +37,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 
 (Most recent at top. Trim manually when this section grows past 30 items.)
 
+- 2026-05-12: **/qa pass on prod** — ISSUE-001 hero subhead reflects all 6 platforms (`1c3a178`), ISSUE-002 kill English HTML5 email popup with noValidate (`0c51d0b`). ISSUE-003 sparse /pricing+/blog → see active P3. Health 88 → 93.
 - 2026-05-12: **Ship to prod** — Vercel HKG/SIN edge at https://yourfirst100.co (custom Cloudflare-registered apex + www, SSL auto-provisioned). Painful path: bun-install hang in IAD → switched to npm; npm picked up local Alibaba intranet registry from `~/.npmrc` → committed project-level `.npmrc` pinning npmjs.org; SITE_URL env initially missing → og:image leaked localhost; first-deploy auto-alias was the throwaway `first-100-navy.vercel.app` instead of customer domain.
 - 2026-05-12: Constant-time CRON_SECRET compare (timingSafeEqual)
 - 2026-05-12: Edge → Node runtime + `preferredRegion = ['hkg1']` on /api/scan and /api/poster/generate (Edge didn't surface env reliably; HKG region pin via vercel.json instead)
