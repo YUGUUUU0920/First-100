@@ -13,6 +13,12 @@ import {
   JuejinError,
   type JuejinCategory,
 } from "@/lib/juejin";
+import { SSPAI_TAGS, fetchSspaiMatrix, SspaiError, type SspaiTag } from "@/lib/sspai";
+import {
+  fetchGitHubTrendingCN,
+  GitHubTrendingError,
+  type GitHubSince,
+} from "@/lib/github-trending";
 
 /**
  * POST /api/scan
@@ -34,13 +40,11 @@ import {
 
 const scanRequestSchema = z.object({
   product_id: z.string().uuid(),
-  // source: v2ex (default) or juejin. node param is reused as juejin category.
-  source: z.enum(["v2ex", "juejin"]).default("v2ex"),
-  node: z
-    .string()
-    .min(1, "节点名不能空")
-    .max(32, "节点名太长")
-    .regex(/^[a-z0-9][a-z0-9-]{0,32}$/, "节点名只允许小写字母 / 数字 / 短横线"),
+  source: z.enum(["v2ex", "juejin", "sspai", "github-cn"]).default("v2ex"),
+  // For v2ex: node slug (lowercase letters/digits/hyphens).
+  // For juejin / sspai: category key (latin or Chinese, validated downstream).
+  // For github-cn: 'daily' / 'weekly' / 'monthly' (mapped to GitHubSince).
+  node: z.string().min(1, "node 不能空").max(32, "node 太长"),
   min_score: z.number().min(0).max(10).default(6),
 });
 
@@ -132,36 +136,75 @@ export async function POST(request: NextRequest) {
 
   let posts: NormalizedPost[];
   try {
-    if (source === "juejin") {
-      // For juejin the `node` param maps to one of our known categories
-      const cat = node as JuejinCategory;
-      if (!(cat in JUEJIN_CATEGORIES)) {
-        throw new JuejinError(
-          `juejin 不支持 category：${node}（用 ${Object.keys(JUEJIN_CATEGORIES).join(" / ")}）`,
-          "invalid_category"
-        );
+    switch (source) {
+      case "juejin": {
+        const cat = node as JuejinCategory;
+        if (!(cat in JUEJIN_CATEGORIES)) {
+          throw new JuejinError(
+            `juejin 不支持 category：${node}（用 ${Object.keys(JUEJIN_CATEGORIES).join(" / ")}）`,
+            "invalid_category"
+          );
+        }
+        const result = await fetchJuejinFeed(cat);
+        posts = result.articles.map((a) => ({
+          title: a.title,
+          body: a.brief,
+          url: a.url,
+          author_handle: a.author_handle,
+          age_days: ageDays(a.ctime),
+          score: a.digg_count,
+          reply_count: a.comment_count,
+        }));
+        break;
       }
-      const result = await fetchJuejinFeed(cat);
-      posts = result.articles.map((a) => ({
-        title: a.title,
-        body: a.brief,
-        url: a.url,
-        author_handle: a.author_handle,
-        age_days: ageDays(a.ctime),
-        score: a.digg_count,
-        reply_count: a.comment_count,
-      }));
-    } else {
-      const topics = (await fetchNodeTopics(node)).topics;
-      posts = topics.map((t) => ({
-        title: t.title,
-        body: t.content,
-        url: t.url,
-        author_handle: t.member.username,
-        age_days: ageDays(t.created),
-        score: null, // V2EX doesn't expose upvotes
-        reply_count: t.replies,
-      }));
+      case "sspai": {
+        const tag = node as SspaiTag;
+        if (!(tag in SSPAI_TAGS)) {
+          throw new SspaiError(
+            `sspai 不支持 tag：${node}（用 ${Object.keys(SSPAI_TAGS).join(" / ")}）`,
+            "invalid_tag"
+          );
+        }
+        const result = await fetchSspaiMatrix(tag);
+        posts = result.articles.map((a) => ({
+          title: a.title,
+          body: a.summary,
+          url: a.url,
+          author_handle: a.author_nickname || a.author_slug,
+          age_days: ageDays(a.released_at),
+          score: a.like_count,
+          reply_count: a.comment_count,
+        }));
+        break;
+      }
+      case "github-cn": {
+        const since: GitHubSince =
+          node === "weekly" ? "weekly" : node === "monthly" ? "monthly" : "daily";
+        const result = await fetchGitHubTrendingCN(since);
+        posts = result.repos.map((r) => ({
+          title: r.title,
+          body: r.description || `${r.language} · ${r.stars}★ · ${r.stars_today}★ today`,
+          url: r.url,
+          author_handle: r.author_handle,
+          age_days: 0, // trending = recently active by definition
+          score: r.stars,
+          reply_count: null,
+        }));
+        break;
+      }
+      default: {
+        // v2ex
+        const topics = (await fetchNodeTopics(node)).topics;
+        posts = topics.map((t) => ({
+          title: t.title,
+          body: t.content,
+          url: t.url,
+          author_handle: t.member.username,
+          age_days: ageDays(t.created),
+          score: null,
+          reply_count: t.replies,
+        }));
+      }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -171,7 +214,9 @@ export async function POST(request: NextRequest) {
       .eq("id", scanId);
     const isInvalid =
       (err instanceof V2EXError && err.cause_kind === "invalid_node") ||
-      (err instanceof JuejinError && err.cause_kind === "invalid_category");
+      (err instanceof JuejinError && err.cause_kind === "invalid_category") ||
+      (err instanceof SspaiError && err.cause_kind === "invalid_tag") ||
+      err instanceof GitHubTrendingError;
     const status = isInvalid ? 400 : 502;
     return NextResponse.json(
       { error: { code: "fetch_error", message: msg }, scan_id: scanId },

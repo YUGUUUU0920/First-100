@@ -9,17 +9,25 @@
  */
 
 export const RELEVANCE_FILTER_VERSION = "filter-v1";
-export const OUTREACH_GENERATE_VERSION = "gen-v2";
-export const OUTREACH_CRITIQUE_VERSION = "critique-v1";
+// gen-v3: rewritten 2026-05-12 with few-shot examples to kill the
+// "4-paragraph marketing copy" pattern that gen-v2 produced. Target length
+// halved to 200 chars (real V2EX replies are typically 50-180 chars).
+export const OUTREACH_GENERATE_VERSION = "gen-v3";
+// critique-v2: matched to gen-v3, also few-shot with concrete examples of
+// AI-味 patterns and what natural Chinese internet replies look like.
+// Threshold raised to 8 — gen-v2's 7 was too lenient (drafts founders
+// called obvious AI scored 8/10).
+export const OUTREACH_CRITIQUE_VERSION = "critique-v2";
 
 // AI-味 critique threshold: drafts scoring below this get rewritten once.
-export const OUTREACH_CRITIQUE_THRESHOLD = 7;
+// Raised from 7 → 8: founders consistently flagged gen-v2 8/10 drafts as
+// reading AI. Force rewrite more aggressively.
+export const OUTREACH_CRITIQUE_THRESHOLD = 8;
 
-// Hard ceiling on draft length.  Originally 280 from CEO plan (Twitter
-// legacy), but V2EX / 即刻 don't impose that and Sonnet routinely overshoots
-// 280 by 10-15% on real Chinese inputs.  320 stays brief enough to force
-// the model to be punchy while accepting the natural variance.
-export const OUTREACH_MAX_CHARS = 320;
+// Soft target — prompt asks Sonnet to aim here. Real V2EX/即刻 replies
+// average 50-180 chars; 200 lets Sonnet pack a callback + one insight + an
+// optional product mention without rambling.
+export const OUTREACH_MAX_CHARS = 200;
 
 export interface RelevanceFilterInput {
   productDescription: string;
@@ -116,22 +124,43 @@ export function buildOutreachGenerationMessage(input: OutreachGenerationInput) {
   const titleLine = postTitle ? `标题：${postTitle}\n` : "";
 
   const systemInstruction = [
-    "你是一名中文 indie hacker 营销文案。",
-    "我会给你一段产品描述，和一条社区帖子（V2EX 或即刻）。",
-    "你的任务：为帖子作者写一条**中文破冰回复**，让 ta 看到时点开了解我的产品。",
+    "你是一个中文 indie hacker，在 V2EX / 即刻上跟另一个 indie 闲聊。",
+    "我会给你一段产品描述（你自己的产品）和别人的一条帖子。",
+    "你的任务：在这帖子下面留一条**像真人写的中文回复**。",
     "",
-    "硬约束（违反任意一条 = 失败）：",
-    `  - draft ≤ ${OUTREACH_MAX_CHARS} 个汉字（含标点）。请字数严格控制。`,
-    "  - 必须引用帖子里至少一个具体细节（不能泛泛而谈）",
-    "  - 不强行嵌入产品链接 / 二维码（提到产品名即可）",
-    "  - 不用 AI 万金油词：「赋能」「打造」「全方位」「生态」「闭环」「赛道」",
-    "  - 写得像真实 indie 在留言，不是销售机器人",
-    "  - 用中文社区的对话感（直接、不啰嗦、自嘲 OK）",
-    "  - 不要开头说「您好」或「老哥您好」之类客套",
-    "  - rationale ≤ 30 字，一句话",
+    `字数：${OUTREACH_MAX_CHARS} 字以内（真实 V2EX 回复一般 50-180 字）。`,
     "",
-    "只回 JSON，不要 markdown，不要前后文字：",
-    `{"draft": "<回复文本>", "rationale": "<≤30字解释>"}`,
+    "✅ 必须做到的（一条不达 = 失败）：",
+    "  - 第一句必须引用帖子里的具体细节 / 数字 / 用词（不要「看了你的帖子」这种空话）",
+    "  - 像聊天，不像写文章。允许短句、省略号、没结尾标点",
+    "  - 顺手可以提你产品（用「PS / 顺带 / btw」）但不能整段卖货",
+    "  - 提产品最多 1 句话，再多就是 spam",
+    "",
+    "❌ 不准出现的（出现一个 = 失败）：",
+    "  - 「赋能」「打造」「全方位」「生态」「闭环」「赛道」「破冰」「拿捏」「真不是说着玩」",
+    "  - 段落式结构：「我先夸你执行力 → 我分享我观点 → 我提我产品 → 我推荐别的」这种 4 段走",
+    "  - 「您好」「老哥您好」「博主」「楼主」开场",
+    "  - 总结性收尾：「垂直受众比泛流量转化效率高太多了」这种 marketing 金句",
+    "  - 假装跟作者很熟（「跟你说哦」「你信不信」）",
+    "",
+    "几个真实风格示范：",
+    "",
+    "示范 1（PH 0 用户的帖子）：",
+    "  +1，PH 发完真的就是个仪式感。我做 X 的时候也是发完没声音，后来去 indie 群发了下反而进了 30 人。",
+    "  PS 我做了个 first 100，扫 V2EX/即刻找潜在用户，你这个场景应该用得上。",
+    "",
+    "示范 2（出海工具站求推广建议的帖子）：",
+    "  46 篇评测是真的卷。SEO 这个阶段先别死磕，你这种垂直产品冷启动靠口碑，",
+    "  跨境圈微信群比 GSC 快 10 倍。",
+    "  顺带，我做了个 first 100 帮 indie 找首批用户，跨境场景挺合适，可以试。",
+    "",
+    "示范 3（V2EX 老哥发新工具求 feedback 的帖子）：",
+    "  试了一下，拼图算法确实比 Canva 那套舒服。",
+    "  小建议：拖进去之后能看到一个「再换一种排列」的按钮就更顺了。",
+    "  （我也在折腾 first 100，找 indie 用户那种，发现你这种工具型作者特别难找到种子用户）",
+    "",
+    "rationale ≤ 30 字。只回 JSON，不要 markdown，不要前后文字：",
+    `{"draft": "<回复文本>", "rationale": "<为什么这么写>"}`,
   ].join("\n");
 
   const productContext = [
@@ -219,15 +248,37 @@ export interface OutreachCritiqueInput {
 
 export function buildOutreachCritiqueMessage(input: OutreachCritiqueInput) {
   const systemInstruction = [
-    "你是一个中文 AI 味检测员。我会给你一条 indie hacker 写给潜在用户的破冰回复。",
-    "请打分 0-10：",
-    "  10 = 完全像真实 indie 写的，看不出 AI",
-    "  7-9 = 基本自然，有 1-2 处轻微 AI 味",
-    "  4-6 = 明显 AI 痕迹（套话、过分客气、冗长、转折太多）",
-    "  0-3 = 重度 AI 味（「赋能」「打造」「全方位」「生态」一类词）",
+    "你是一个超级挑剔的 V2EX 老用户。我给你一条要发到 V2EX / 即刻的回复，",
+    "你判断真实 indie 看到这条会不会觉得「这是 AI 写的」。",
+    "",
+    "评分（严苛）：",
+    "  10 = 跟我朋友群里聊天没区别",
+    "  8-9 = 自然，但能看出来作者在认真组织语言（仍可接受）",
+    "  6-7 = 像精心写的论坛回复，有点用力",
+    "  4-5 = 明显 AI 痕迹：太结构化、转折过渡太顺、有总结性收尾",
+    "  0-3 = 重度 AI 味：「赋能」「打造」「生态」「闭环」等词，或者整段像 LinkedIn 帖子",
+    "",
+    "评分示范（学这个标准）：",
+    "",
+    "示范 A — 10 分（真实 V2EX 风格）：",
+    "  +1 我也卡这里。最后是发 indie 群里搞起来的，PH 这种渠道对中文产品确实凉。",
+    "",
+    "示范 B — 7 分（认真但能感觉到写）：",
+    "  你这执行力挺猛。如果是我，会先试一下少数派那种垂直社区，比泛流量精准。",
+    "",
+    "示范 C — 5 分（AI 痕迹明显）：",
+    "  一周做出这么多内容，执行力真的不是说说而已。我有几点建议：首先，",
+    "  评测优先策略很对；其次，建议你提升首页评测的曝光；最后，垂直社群转化效率更高。",
+    "  → 扣分原因：总结型开场 + 「不是说说而已」AI 套话 + 「首先...其次...最后」结构 + 「转化效率」金句",
+    "",
+    "示范 D — 2 分（重度 AI）：",
+    "  非常感谢博主的分享！您的执行力赋能了整个 indie 圈，打造了一个全方位的工具生态。",
+    "  → 扣分：「博主」「赋能」「打造」「全方位」「生态」全中",
+    "",
+    "feedback 要具体说哪句 / 哪个词扣分，并给改写方向。",
     "",
     "只回 JSON：",
-    `{"score": <0-10 数字>, "feedback": "<一句话指出哪里像 AI 味，给一个改写方向>"}`,
+    `{"score": <0-10 数字>, "feedback": "<具体哪里 AI 味 + 怎么改>"}`,
   ].join("\n");
 
   return {

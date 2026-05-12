@@ -9,16 +9,10 @@
 -- re-run.
 -- =============================================================================
 
-do $$
-begin
-  if not exists (select 1 from pg_enum
-                 where enumtypid = 'public.platform'::regtype
-                   and enumlabel = 'xhs-pasted') then
-    alter type public.platform add value 'xhs-pasted';
-  end if;
-  if not exists (select 1 from pg_enum
-                 where enumtypid = 'public.platform'::regtype
-                   and enumlabel = 'juejin') then
-    alter type public.platform add value 'juejin';
-  end if;
-end$$;
+-- Note: cannot wrap multiple ADD VALUE in one DO block (each must be its own
+-- transaction). Run each ALTER on its own — Supabase SQL editor splits on
+-- semicolons. Re-running is safe with `if not exists`.
+alter type public.platform add value if not exists 'xhs-pasted';
+alter type public.platform add value if not exists 'juejin';
+alter type public.platform add value if not exists 'sspai';
+alter type public.platform add value if not exists 'github-cn';

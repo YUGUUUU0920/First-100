@@ -19,24 +19,44 @@ interface ScanResponse {
   error?: { code: string; message: string };
 }
 
-type Source = "v2ex" | "juejin";
+type Source = "v2ex" | "juejin" | "sspai" | "github-cn";
 
-// Real V2EX node slugs verified 2026-04-28. Order: indie-density first.
-const V2EX_NODES = [
-  "create",      // 分享创造 — indie 主力
-  "ideas",       // 突发奇想
-  "sidehustle",  // 副业
-  "share",       // 分享发现
-  "saashub",     // SaaSHub
-  "aisaas",      // AI SaaS
-  "product",     // 产品发布
-  "programmer",  // 程序员
-];
+const SOURCE_LABEL: Record<Source, string> = {
+  v2ex: "V2EX",
+  juejin: "掘金",
+  sspai: "少数派",
+  "github-cn": "GitHub 中文",
+};
 
-// juejin.cn open categories — see lib/juejin.ts for the id mapping.
-const JUEJIN_CATEGORIES = ["ai", "backend", "frontend"];
+const SUGGESTIONS: Record<Source, readonly string[]> = {
+  v2ex: [
+    "create",      // 分享创造 — indie 主力
+    "ideas",       // 突发奇想
+    "sidehustle",  // 副业
+    "share",       // 分享发现
+    "saashub",     // SaaSHub
+    "aisaas",      // AI SaaS
+    "product",     // 产品发布
+    "programmer",  // 程序员
+  ],
+  juejin: ["ai", "backend", "frontend"],
+  sspai: ["开发", "工具", "效率", "创业", "AI", "自动化", "独立开发"],
+  "github-cn": ["daily", "weekly", "monthly"],
+};
 
-const SOURCE_LABEL: Record<Source, string> = { v2ex: "V2EX", juejin: "掘金" };
+const SOURCE_HINT: Record<Source, string> = {
+  v2ex: "v2ex.com/go/<节点名>",
+  juejin: "juejin.cn/recommend?cate=<分类>",
+  sspai: "sspai.com/matrix?tag=<标签>",
+  "github-cn": "github.com/trending?since=<daily|weekly|monthly>",
+};
+
+const SOURCE_DEFAULT: Record<Source, string> = {
+  v2ex: "create",
+  juejin: "ai",
+  sspai: "AI",
+  "github-cn": "daily",
+};
 
 /**
  * Triggers POST /api/scan and refreshes the page on success.
@@ -55,13 +75,12 @@ export function ScanForm({ productId }: ScanFormProps) {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Snap node value to a valid one when source changes
   function setSourceWithDefault(s: Source) {
     setSource(s);
-    setNode(s === "v2ex" ? "create" : "ai");
+    setNode(SOURCE_DEFAULT[s]);
   }
 
-  const suggestions = source === "v2ex" ? V2EX_NODES : JUEJIN_CATEGORIES;
+  const suggestions = SUGGESTIONS[source];
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,11 +109,6 @@ export function ScanForm({ productId }: ScanFormProps) {
 
   const isWorking = busy || pending;
 
-  const sourceHint =
-    source === "v2ex"
-      ? "v2ex.com/go/<节点名>"
-      : "juejin.cn/recommend?cate=<分类>";
-
   return (
     <form onSubmit={onSubmit} className="rule pt-32 mt-48">
       <h2 className="text-h2 font-semibold text-fg">扫一次</h2>
@@ -102,9 +116,9 @@ export function ScanForm({ productId }: ScanFormProps) {
         从社区抓最新 20 帖，AI 过滤出可能的潜在用户。
       </p>
 
-      {/* Source picker — 2 segmented buttons */}
-      <div className="mt-24 inline-flex border border-rule rounded-md overflow-hidden">
-        {(["v2ex", "juejin"] as const).map((s) => {
+      {/* Source picker — segmented buttons. Source-agnostic label/hint */}
+      <div className="mt-24 inline-flex border border-rule rounded-md overflow-hidden flex-wrap">
+        {(["v2ex", "juejin", "sspai", "github-cn"] as const).map((s) => {
           const active = source === s;
           return (
             <button
@@ -114,9 +128,7 @@ export function ScanForm({ productId }: ScanFormProps) {
               onClick={() => setSourceWithDefault(s)}
               className={[
                 "text-sub px-16 py-8 transition-colors",
-                active
-                  ? "bg-fg text-bg"
-                  : "text-fg-muted hover:bg-fg/[0.06]",
+                active ? "bg-fg text-bg" : "text-fg-muted hover:bg-fg/[0.06]",
                 "disabled:opacity-50",
               ].join(" ")}
             >
@@ -129,19 +141,22 @@ export function ScanForm({ productId }: ScanFormProps) {
       <div className="mt-16 flex flex-col sm:flex-row gap-12 items-stretch sm:items-end">
         <div className="flex-1">
           <label htmlFor="node" className="block text-sub text-fg-muted mb-8">
-            {source === "v2ex" ? "节点名" : "分类"}
-            <span className="text-fg-quiet"> · {sourceHint}</span>
+            {source === "github-cn" ? "时段" : "节点 / 分类 / 标签"}
+            <span className="text-fg-quiet"> · {SOURCE_HINT[source]}</span>
           </label>
           <input
             id="node"
             name="node"
             type="text"
             value={node}
-            onChange={(e) => setNode(e.target.value.trim().toLowerCase())}
+            onChange={(e) => {
+              // sspai tags are Chinese — don't lowercase those
+              const v = source === "sspai" ? e.target.value.trim() : e.target.value.trim().toLowerCase();
+              setNode(v);
+            }}
             disabled={isWorking}
             required
-            pattern="[a-z0-9][a-z0-9-]{0,31}"
-            placeholder={source === "v2ex" ? "create" : "ai"}
+            placeholder={SOURCE_DEFAULT[source]}
             className="w-full px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 font-mono"
           />
         </div>
@@ -151,9 +166,7 @@ export function ScanForm({ productId }: ScanFormProps) {
       </div>
 
       <div className="mt-16 flex flex-wrap gap-8">
-        <span className="text-meta text-fg-quiet">
-          {source === "v2ex" ? "推荐节点：" : "可选分类："}
-        </span>
+        <span className="text-meta text-fg-quiet">推荐：</span>
         {suggestions.map((n) => (
           <button
             key={n}
