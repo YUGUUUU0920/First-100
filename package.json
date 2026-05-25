@@ -9,6 +9,7 @@
     "start": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next start",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "smoke": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/smoke.ts",
     "eval": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/eval-relevance.ts"
   },

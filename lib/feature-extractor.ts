@@ -82,7 +82,12 @@ export function extractOutreachFeatures(args: {
     text_len: text.length,
     has_question: /[?？]/.test(text),
     has_url: /https?:\/\//i.test(text),
-    has_ps: /(^|\b)(ps|p\.s\.|顺带|顺手|btw|对了)\b/i.test(text),
+    // Product-mention markers. ASCII markers need word boundaries (so "tips"
+    // doesn't match "ps"); CJK markers are matched as plain substrings because
+    // JS \b only fires between \w and non-\w — and CJK chars are non-\w, so a
+    // trailing \b after "顺带" never matches when followed by another CJK char.
+    // (That bug silently made has_ps=false for every Chinese 顺带/对了 mention.)
+    has_ps: /\b(ps|p\.s\.|btw)\b|顺带|顺手|顺便|对了/i.test(text),
     emoji_count: countMatches(text, EMOJI_RE),
     exclam_count: countMatches(text, /[!！]/g),
     has_ellipsis: /(\.{3}|…)/.test(text),
