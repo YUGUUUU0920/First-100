@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
@@ -129,15 +128,29 @@ export function LoginForm() {
           </motion.div>
         </form>
 
-        <motion.p
+        <motion.div
           {...fadeUp(600)}
           className="mt-32 text-meta text-fg-quiet"
         >
           没收到？检查垃圾箱，或者{" "}
-          <Link href="/login" className="underline hover:text-fg">
-            重发一次
-          </Link>
-        </motion.p>
+          {/*
+            Resend re-submits sendAction with the SAME email (kept in
+            sendState) instead of navigating back to /login — which used to
+            wipe the email and force a retype. Critical-path friction since
+            国内 email delivery is often slow and resend is common.
+          */}
+          <form action={sendAction} className="inline">
+            <input type="hidden" name="email" value={email} />
+            {nextFromSend && <input type="hidden" name="next" value={nextFromSend} />}
+            <button
+              type="submit"
+              disabled={sendPending}
+              className="underline hover:text-fg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendPending ? "重发中..." : "重发验证码"}
+            </button>
+          </form>
+        </motion.div>
         <motion.p
           {...fadeUp(680)}
           className="mt-12 text-meta text-fg-quiet"
