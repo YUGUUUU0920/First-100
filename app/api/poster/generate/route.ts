@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { originGuard } from "@/lib/api-guards";
 import { renderWeeklyPoster } from "@/lib/poster";
 import { getStreakWeeks, getWeeklyStats } from "@/lib/weekly-stats";
 
@@ -22,6 +23,10 @@ const SIGNED_URL_TTL_SEC = 30 * 24 * 3600; // 30 days
 export const preferredRegion = ["hkg1"];
 
 export async function POST(request: Request) {
+  // CSRF defense — reject cross-origin POSTs (mirrors /api/scan).
+  const csrfBlock = originGuard(request);
+  if (csrfBlock) return csrfBlock;
+
   const userClient = await createClient();
   const {
     data: { user },

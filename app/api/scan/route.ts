@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { originGuard } from "@/lib/api-guards";
 import { getClaude } from "@/lib/claude";
 import { scoreRelevance } from "@/lib/claude/filter";
 import { generateOutreachWithCritique } from "@/lib/claude/generate";
@@ -54,37 +55,6 @@ const HAIKU_INPUT_USD_PER_MTOK = 1.0;
 const HAIKU_OUTPUT_USD_PER_MTOK = 5.0;
 const SONNET_INPUT_USD_PER_MTOK = 3.0;
 const SONNET_OUTPUT_USD_PER_MTOK = 15.0;
-
-/**
- * CSRF defense-in-depth: reject requests whose Origin / Referer header is not
- * our own site. Server Actions get this for free via Next.js; route handlers
- * don't. Same-Site=Lax cookies block most cross-site POSTs, but explicit
- * origin check closes subdomain / cookie-confusion edge cases.
- *
- * Returns null if origin is OK, else a 403 response.
- */
-function originGuard(request: NextRequest): NextResponse | null {
-  const origin = request.headers.get("origin") ?? request.headers.get("referer");
-  if (!origin) {
-    // No origin header at all — server-to-server call, allow (cron etc.).
-    // Route is auth-gated so this isn't bypass-able by unauthenticated users.
-    return null;
-  }
-  let originHost: string;
-  try {
-    originHost = new URL(origin).host;
-  } catch {
-    return NextResponse.json({ error: { code: "bad_origin" } }, { status: 403 });
-  }
-  const siteHost = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost").host;
-  if (originHost !== siteHost) {
-    return NextResponse.json(
-      { error: { code: "bad_origin", message: `origin ${originHost} not allowed` } },
-      { status: 403 }
-    );
-  }
-  return null;
-}
 
 export async function POST(request: NextRequest) {
   // 0. CSRF defense — reject cross-origin POSTs.
