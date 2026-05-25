@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Product } from "@/lib/supabase/types";
 import { KeyboardNav } from "./_keyboard-nav";
-import { PasteForm } from "./_paste-form";
+import { PasteSection } from "./_paste-section";
 import { ProspectList, type ProspectWithOutreach } from "./_prospect-list";
 import {
   ProspectFilterBar,
@@ -108,17 +108,34 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
 
         {!hasAnyProspects && <OnboardingStrip />}
 
-        <ThisWeek stats={weeklyStats} streak={streak} />
+        {/*
+          Progressive disclosure based on whether the user has any prospects yet.
 
-        <ScanForm productId={activeProduct.id} />
-        <PasteForm productId={activeProduct.id} platform="jike-pasted" />
-        <PasteForm productId={activeProduct.id} platform="xhs-pasted" />
+          First-time user (hasAnyProspects = false):
+            1. Onboarding strip explains the 3-step loop (above)
+            2. ScanForm — the ONE thing they should do first
+            3. Paste section is hidden — too many options confuses (they can
+               discover it after seeing what scan does)
+            4. ThisWeek / Filter / List hidden — nothing to show, no shame
+
+          Returning user (hasAnyProspects = true):
+            1. ScanForm — quick path to more prospects
+            2. Paste section — for non-scrapable platforms
+            3. Filter + List — their actual work
+            4. ThisWeek — progress summary at the bottom
+        */}
+
+        <ScanForm productId={activeProduct.id} firstTime={!hasAnyProspects} />
+
+        {hasAnyProspects && (
+          <PasteSection productId={activeProduct.id} />
+        )}
 
         {prospectsErr ? (
           <p className="mt-32 text-sub text-fg" role="alert">
-            读取 prospects 出错：{prospectsErr.message}
+            读取潜在用户列表出错：{prospectsErr.message}
           </p>
-        ) : (
+        ) : hasAnyProspects ? (
           <>
             <ProspectFilterBar
               productId={activeProduct.id}
@@ -129,8 +146,9 @@ export default async function Dashboard({ searchParams }: DashboardSearchParams)
             <ProspectList
               prospects={prospects as unknown as ProspectWithOutreach[]}
             />
+            <ThisWeek stats={weeklyStats} streak={streak} />
           </>
-        )}
+        ) : null}
       </section>
       <KeyboardNav />
     </main>

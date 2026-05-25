@@ -7,6 +7,13 @@ import { pastedProspect, type PasteResult } from "./actions";
 interface PasteFormProps {
   productId: string;
   platform: "jike-pasted" | "xhs-pasted";
+  /**
+   * When true, render without the section-header (h2 + blurb + rule line).
+   * The parent (`_paste-section.tsx`) provides those once for both platforms
+   * to avoid visual duplication. Stand-alone usage (legacy / first-time
+   * onboarding) keeps the header.
+   */
+  embedded?: boolean;
 }
 
 const initialState: PasteResult | null = null;
@@ -43,7 +50,7 @@ const PLATFORM_COPY: Record<
  * Same UX shape, different copy. The platform discriminator goes to the
  * server action so prospects land with the correct source_platform.
  */
-export function PasteForm({ productId, platform }: PasteFormProps) {
+export function PasteForm({ productId, platform, embedded = false }: PasteFormProps) {
   const [state, formAction, pending] = useActionState(pastedProspect, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const copy = PLATFORM_COPY[platform];
@@ -58,10 +65,23 @@ export function PasteForm({ productId, platform }: PasteFormProps) {
     state && !state.ok && state.field === field ? state.error : null;
   const generalError = state && !state.ok && !state.field ? state.error : null;
 
+  // Embedded mode (inside <PasteSection>): no h2 / blurb / rule line, just the
+  // form fields. The wrapper provides those. Embedded forms still need a
+  // small reminder of platform-specific instructions inline, so we render
+  // a compact blurb above the textarea instead.
+  const wrapperClass = embedded ? "" : "rule pt-32 mt-48";
+
   return (
-    <form ref={formRef} action={formAction} className="rule pt-32 mt-48">
-      <h2 className="text-h2 font-semibold text-fg">{copy.heading}</h2>
-      <p className="mt-12 text-sub text-fg-muted">{copy.blurb}</p>
+    <form ref={formRef} action={formAction} className={wrapperClass}>
+      {!embedded && (
+        <>
+          <h2 className="text-h2 font-semibold text-fg">{copy.heading}</h2>
+          <p className="mt-12 text-sub text-fg-muted">{copy.blurb}</p>
+        </>
+      )}
+      {embedded && (
+        <p className="text-meta text-fg-quiet mb-12">{copy.blurb}</p>
+      )}
 
       <input type="hidden" name="product_id" value={productId} />
       <input type="hidden" name="platform" value={platform} />

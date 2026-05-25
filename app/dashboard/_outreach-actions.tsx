@@ -22,11 +22,18 @@ function isExternalLink(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
-const ALL_STATUSES: { key: OutreachStatus; label: string }[] = [
+// Primary status row — visible by default. These are the ones a founder
+// hits in normal workflow.
+const PRIMARY_STATUSES: { key: OutreachStatus; label: string }[] = [
   { key: "sent", label: "已发送" },
   { key: "replied", label: "已回复" },
   { key: "converted", label: "已转化" },
-  { key: "skipped", label: "跳过" },
+];
+
+// Secondary — tucked into the kebab menu. "跳过" is rare; cluttering the
+// primary row with it forces the founder's eye past it every time.
+const SECONDARY_STATUSES: { key: OutreachStatus; label: string }[] = [
+  { key: "skipped", label: "跳过这条" },
 ];
 
 /**
@@ -49,6 +56,7 @@ export function OutreachActions({
   const [toast, setToast] = useState<{ message: string; tone: "ok" | "err" } | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Optimistic: pretend the event is already in the list while the server
   // call is in flight. On error, the next props.events re-render reverts it.
@@ -191,21 +199,16 @@ export function OutreachActions({
         只复制
       </button>
 
-      <button
-        type="button"
-        onClick={onRegenerate}
-        disabled={regenerating}
-        className="text-meta px-12 py-6 border border-rule rounded-md text-fg-muted hover:bg-fg hover:text-bg transition-colors disabled:opacity-50"
-        title="让 AI 再写一次"
-      >
-        {regenerating ? "重写中..." : "重写"}
-      </button>
-
       <span className="text-fg-quiet/40 text-meta select-none" aria-hidden="true">
         |
       </span>
 
-      {ALL_STATUSES.map(({ key, label }) => {
+      {/*
+        Primary status row — sent / replied / converted. "跳过" + "重写"
+        moved into the kebab menu to reduce per-row visual load (was 8
+        buttons, now 5 + a menu).
+      */}
+      {PRIMARY_STATUSES.map(({ key, label }) => {
         const isReached = reached.has(key);
         return (
           <button
@@ -224,6 +227,65 @@ export function OutreachActions({
           </button>
         );
       })}
+
+      {/* Kebab: 重写 + 跳过 — secondary actions. */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="text-meta px-8 py-6 border border-rule rounded-md text-fg-muted hover:bg-fg hover:text-bg transition-colors leading-none"
+          title="更多操作（重写 / 跳过）"
+        >
+          ⋯
+        </button>
+        {menuOpen && (
+          <>
+            {/* Click-outside backdrop */}
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <div
+              role="menu"
+              className="absolute right-0 mt-4 z-20 min-w-[160px] bg-bg border border-rule rounded-md shadow-md py-4"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onRegenerate();
+                }}
+                disabled={regenerating}
+                className="block w-full text-left text-meta px-12 py-8 text-fg-muted hover:bg-fg/[0.06] hover:text-fg transition-colors disabled:opacity-50"
+              >
+                {regenerating ? "重写中..." : "让 AI 重写"}
+              </button>
+              {SECONDARY_STATUSES.map(({ key, label }) => {
+                const isReached = reached.has(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onMark(key);
+                    }}
+                    disabled={isReached}
+                    className="block w-full text-left text-meta px-12 py-8 text-fg-muted hover:bg-fg/[0.06] hover:text-fg transition-colors disabled:opacity-50"
+                  >
+                    {isReached ? `✓ ${label}` : label}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
       {errorMsg && (
         <span className="text-meta text-fg" role="alert">

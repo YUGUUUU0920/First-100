@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/Button";
 
 interface ScanFormProps {
   productId: string;
+  /**
+   * Render-time signal: does the user have zero prospects on this product?
+   * When true, we emphasize V2EX (most reliably yields indie hacker leads)
+   * and add a "建议先扫这个" hint, so new founders aren't paralyzed by 4
+   * equal-looking sources.
+   */
+  firstTime?: boolean;
 }
 
 interface ScanResponse {
@@ -82,7 +89,7 @@ const SOURCE_DEFAULT: Record<Source, string> = {
  *   - Shows inline error on 4xx/5xx
  *   - Calls router.refresh() on success so the new prospects render via RSC
  */
-export function ScanForm({ productId }: ScanFormProps) {
+export function ScanForm({ productId, firstTime = false }: ScanFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -135,10 +142,18 @@ export function ScanForm({ productId }: ScanFormProps) {
 
       {/* Source picker */}
       <div className="mt-24">
-        <p className="text-sub text-fg-muted mb-8">1. 在哪里扫？</p>
+        <p className="text-sub text-fg-muted mb-8">
+          1. 在哪里扫？
+          {firstTime && (
+            <span className="ml-8 text-meta text-fg-quiet">
+              （第一次的话，建议先扫 V2EX —— 中文 indie 圈最活跃）
+            </span>
+          )}
+        </p>
         <div className="inline-flex border border-rule rounded-md overflow-hidden flex-wrap">
           {(["v2ex", "juejin", "sspai", "github-cn"] as const).map((s) => {
             const active = source === s;
+            const recommended = firstTime && s === "v2ex" && !active;
             return (
               <button
                 key={s}
@@ -146,12 +161,18 @@ export function ScanForm({ productId }: ScanFormProps) {
                 disabled={isWorking}
                 onClick={() => setSourceWithDefault(s)}
                 className={[
-                  "text-sub px-16 py-8 transition-colors",
+                  "text-sub px-16 py-8 transition-colors relative",
                   active ? "bg-fg text-bg" : "text-fg-muted hover:bg-fg/[0.06]",
+                  recommended ? "ring-1 ring-accent/40 ring-inset" : "",
                   "disabled:opacity-50",
                 ].join(" ")}
               >
                 {SOURCE_LABEL[s]}
+                {recommended && (
+                  <span className="absolute -top-1 -right-1 text-[9px] bg-accent text-accent-fg px-4 rounded-full leading-none py-[2px]">
+                    推荐
+                  </span>
+                )}
               </button>
             );
           })}
