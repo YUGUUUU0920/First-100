@@ -51,20 +51,36 @@ const INPUT_HELP: Record<Source, string> = {
   "github-cn": "daily = 今天最热 · weekly = 本周最热 · monthly = 本月最热。",
 };
 
-const SUGGESTIONS: Record<Source, readonly string[]> = {
+// Suggestion chips: show a human-readable Chinese label, fill the raw slug.
+// A first-time founder has no idea what "saashub" / "aisaas" / "sidehustle"
+// mean — but "SaaSHub" / "AI SaaS" / "副业" they get instantly. Clicking the
+// chip still puts the slug in the input (what /api/scan needs), and the hint
+// text above explains the slug↔URL mapping.
+const SUGGESTIONS: Record<Source, readonly { slug: string; label: string }[]> = {
   v2ex: [
-    "create",      // 分享创造 — indie 主力
-    "ideas",       // 突发奇想
-    "sidehustle",  // 副业
-    "share",       // 分享发现
-    "saashub",     // SaaSHub
-    "aisaas",      // AI SaaS
-    "product",     // 产品发布
-    "programmer",  // 程序员
+    { slug: "create", label: "分享创造" },
+    { slug: "ideas", label: "突发奇想" },
+    { slug: "sidehustle", label: "副业" },
+    { slug: "share", label: "分享发现" },
+    { slug: "saashub", label: "SaaSHub" },
+    { slug: "aisaas", label: "AI SaaS" },
+    { slug: "product", label: "产品发布" },
+    { slug: "programmer", label: "程序员" },
   ],
-  juejin: ["ai", "backend", "frontend"],
-  sspai: ["开发", "工具", "效率", "创业", "AI", "自动化", "独立开发"],
-  "github-cn": ["daily", "weekly", "monthly"],
+  juejin: [
+    { slug: "ai", label: "AI" },
+    { slug: "backend", label: "后端" },
+    { slug: "frontend", label: "前端" },
+  ],
+  sspai: ["开发", "工具", "效率", "创业", "AI", "自动化", "独立开发"].map((s) => ({
+    slug: s,
+    label: s,
+  })),
+  "github-cn": [
+    { slug: "daily", label: "今日热门" },
+    { slug: "weekly", label: "本周热门" },
+    { slug: "monthly", label: "本月热门" },
+  ],
 };
 
 const SUGGESTION_LABEL: Partial<Record<Source, string>> = {
@@ -208,17 +224,24 @@ export function ScanForm({ productId, firstTime = false }: ScanFormProps) {
 
       <div className="mt-16 flex flex-wrap gap-8 items-center">
         <span className="text-meta text-fg-quiet">{SUGGESTION_LABEL[source] ?? "试这些："}</span>
-        {suggestions.map((n) => (
-          <button
-            key={n}
-            type="button"
-            disabled={isWorking}
-            onClick={() => setNode(n)}
-            className="text-meta text-fg-muted hover:text-fg underline-offset-4 hover:underline disabled:opacity-50 font-mono"
-          >
-            {n}
-          </button>
-        ))}
+        {suggestions.map(({ slug, label }) => {
+          const isSelectedNode = node === slug;
+          return (
+            <button
+              key={slug}
+              type="button"
+              disabled={isWorking}
+              onClick={() => setNode(slug)}
+              title={`填入「${slug}」`}
+              className={[
+                "text-meta underline-offset-4 hover:underline disabled:opacity-50 transition-colors",
+                isSelectedNode ? "text-fg font-medium" : "text-fg-muted hover:text-fg",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {isWorking && <ScanProgress />}
