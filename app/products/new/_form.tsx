@@ -1,14 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { createProduct, type CreateProductState } from "./actions";
 
 const initialState: CreateProductState = { status: "idle" };
 
+const DESCRIPTION_MAX = 500;
+const PERSONA_MAX = 200;
+
 export function NewProductForm() {
   const [state, formAction, pending] = useActionState(createProduct, initialState);
+  // Live char counts. Inputs stay uncontrolled (no value prop) so the form
+  // action still submits normally — we only read length for the counter.
+  const [descLen, setDescLen] = useState(0);
+  const [personaLen, setPersonaLen] = useState(0);
   const reduce = useReducedMotion();
   const ease = [0.25, 0.1, 0.25, 1] as const;
   const fadeUp = (delayMs: number) => ({
@@ -62,16 +69,26 @@ export function NewProductForm() {
       </motion.div>
 
       <motion.div {...fadeUp(320)} className="mt-32">
-        <label htmlFor="description" className="block text-sub text-fg-muted mb-8">
-          产品描述（200-500 字，越具体过滤越准）
-        </label>
+        <div className="flex items-baseline justify-between mb-8">
+          <label htmlFor="description" className="block text-sub text-fg-muted">
+            产品描述（越具体，AI 过滤越准）
+          </label>
+          <span
+            className={`text-meta tabular-nums ${
+              descLen >= DESCRIPTION_MAX ? "text-fg" : "text-fg-quiet"
+            }`}
+          >
+            {descLen} / {DESCRIPTION_MAX}
+          </span>
+        </div>
         <textarea
           id="description"
           name="description"
           required
-          maxLength={500}
+          maxLength={DESCRIPTION_MAX}
           rows={6}
           disabled={pending}
+          onChange={(e) => setDescLen(e.target.value.length)}
           placeholder="我做的是一个帮中文 indie hacker 找前 100 个用户的工具。输入产品描述，AI 自动扫 V2EX·掘金·少数派·GitHub 中文榜最近的帖子，过滤出真的在讨论冷启动 / 找不到用户 / 早期分发的人，给每个写一句中文个性化破冰..."
           className="w-full px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 resize-none font-sans"
         />
@@ -83,15 +100,25 @@ export function NewProductForm() {
       </motion.div>
 
       <motion.div {...fadeUp(400)} className="mt-32">
-        <label htmlFor="target_persona" className="block text-sub text-fg-muted mb-8">
-          目标用户画像（≤200 字，可空）
-        </label>
+        <div className="flex items-baseline justify-between mb-8">
+          <label htmlFor="target_persona" className="block text-sub text-fg-muted">
+            目标用户画像（可空，但填了过滤更准）
+          </label>
+          <span
+            className={`text-meta tabular-nums ${
+              personaLen >= PERSONA_MAX ? "text-fg" : "text-fg-quiet"
+            }`}
+          >
+            {personaLen} / {PERSONA_MAX}
+          </span>
+        </div>
         <textarea
           id="target_persona"
           name="target_persona"
-          maxLength={200}
+          maxLength={PERSONA_MAX}
           rows={3}
           disabled={pending}
+          onChange={(e) => setPersonaLen(e.target.value.length)}
           placeholder="中文 indie hacker，月收入 ¥30-100k，副业写产品，已经在 V2EX / 即刻漂，但不擅长主动接触陌生人..."
           className="w-full px-16 py-12 text-body bg-bg border border-rule rounded-md text-fg placeholder:text-fg-quiet focus:outline-none focus:border-fg transition-colors disabled:opacity-50 resize-none font-sans"
         />
