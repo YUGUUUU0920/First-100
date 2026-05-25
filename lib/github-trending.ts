@@ -125,7 +125,10 @@ export async function fetchGitHubTrendingCN(
   return { repos, fetched_at: Math.floor(Date.now() / 1000) };
 }
 
-function stripTags(html: string): string {
+// Exported for unit testing — these pure parsers had a real bug once
+// (star+fork anchor digits concatenated into 1.6e+296), so they're
+// regression-tested in github-trending.test.ts.
+export function stripTags(html: string): string {
   return html
     .replace(/<svg[\s\S]*?<\/svg>/g, "")
     .replace(/<[^>]+>/g, "")
@@ -139,14 +142,14 @@ function stripTags(html: string): string {
 }
 
 /** Parse the first integer-looking token (may contain commas) from a string. */
-function parseLeadingInt(s: string): number {
+export function parseLeadingInt(s: string): number {
   const m = s.match(/[\d,]+/);
   if (!m) return 0;
   const n = parseInt(m[0].replace(/,/g, ""), 10);
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseCountFromAnchor(block: string, kind: "stargazers" | "forks"): number {
+export function parseCountFromAnchor(block: string, kind: "stargazers" | "forks"): number {
   const re = new RegExp(
     `<a[^>]*href="\\/[^/"]+\\/[^/"]+\\/${kind}"[^>]*>([\\s\\S]*?)<\\/a>`
   );
