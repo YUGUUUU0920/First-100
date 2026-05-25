@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { originGuard } from "@/lib/api-guards";
+import { originGuard, inMemoryRateLimit } from "@/lib/api-guards";
 import { renderWeeklyPoster } from "@/lib/poster";
 import { getStreakWeeks, getWeeklyStats } from "@/lib/weekly-stats";
 
@@ -33,6 +33,17 @@ export async function POST(request: Request) {
   } = await userClient.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: { code: "unauthorized" } }, { status: 401 });
+  }
+
+  // Rate limit — poster overwrites one file per ISO week, so the only abuse
+  // vector is Vercel invocation cost. 20/hour per user is far above any real
+  // usage (a founder refreshes a few times a week) but blocks a burst loop.
+  const rl = inMemoryRateLimit(`poster:${user.id}`, 20, 3600_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: { code: "rate_limit", message: "海报生成太频繁了，等一会再来。" } },
+      { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } }
+    );
   }
 
   let body: { product_id?: string } = {};
