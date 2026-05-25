@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getClaude } from "@/lib/claude";
 import { generateOutreachWithCritique } from "@/lib/claude/generate";
+import { extractOutreachFeatures } from "@/lib/feature-extractor";
 import type { OutreachStatus } from "@/lib/supabase/types";
 
 export type MarkResult =
@@ -38,24 +39,46 @@ export async function markOutreach(
 
   const admin = createAdminClient();
 
-  // Verify the outreach belongs to this user.
+  // Verify the outreach belongs to this user. Fetch the richer columns + the
+  // joined prospect so we capture a full feature vector at mark-time — the
+  // data-flywheel moat (see lib/feature-extractor.ts + CEO review Pick #2).
   const { data: o, error: oErr } = await admin
     .from("outreaches")
-    .select("id, user_id, prospect_id, status")
+    .select(
+      "id, user_id, prospect_id, status, final_chosen, draft_v1, draft_v2, critique_score, created_at, prospects(ai_relevance_score, post_score, post_reply_count, post_age_days, source_platform)"
+    )
     .eq("id", outreachId)
     .single();
   if (oErr || !o || o.user_id !== user.id) {
     return { ok: false, error: "outreach not found" };
   }
 
+  // outreach→prospect is many-to-one; Supabase may type the join as array or
+  // object depending on inference — normalize to a single row.
+  const prospectJoin = Array.isArray(o.prospects) ? o.prospects[0] : o.prospects;
+
+  const features = extractOutreachFeatures({
+    outreach: {
+      finalText: o.final_chosen,
+      draftV1: o.draft_v1,
+      wasRewritten: o.draft_v2 != null,
+      critiqueScore: o.critique_score,
+      draftedAt: o.created_at,
+    },
+    prospect: {
+      aiRelevanceScore: prospectJoin?.ai_relevance_score ?? null,
+      postScore: prospectJoin?.post_score ?? null,
+      postReplyCount: prospectJoin?.post_reply_count ?? null,
+      postAgeDays: prospectJoin?.post_age_days ?? null,
+      sourcePlatform: prospectJoin?.source_platform ?? "unknown",
+    },
+  });
+
   const { error: insertErr } = await admin.from("outreach_events").insert({
     outreach_id: outreachId,
     user_id: user.id,
     status,
-    features: {
-      // Minimal v0 capture. Expand to full feature vector when ranking model lands.
-      source: "dashboard_button",
-    },
+    features,
   });
   if (insertErr) {
     return { ok: false, error: insertErr.message };
