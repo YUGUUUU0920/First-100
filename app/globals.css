@@ -102,14 +102,15 @@ output, data, code {
   outline-offset: -2px;
 }
 
-/* Subtle 1px hairline shadow on cards-without-borders — lets us drop the
-   border outline on outreach blocks without losing depth signal. Per
-   redesign-existing-projects: prefer spacing/elevation over generic borders. */
+/* Card surface. Earlier this used `background: var(--bg)` (#fafaf8) — the SAME
+   as the page bg — so cards had zero background contrast and relied on a 4%-black
+   hairline that was effectively invisible (founder flagged "和底色对比非常不明显").
+   Now: white surface that reads brighter than the off-white page, a real rule
+   border, and a soft shadow for depth. */
 .card-soft {
-  background: var(--bg);
-  box-shadow:
-    0 0 0 1px rgba(10, 10, 10, 0.04),
-    0 1px 0 rgba(10, 10, 10, 0.02);
+  background: #ffffff;
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 3px rgba(10, 10, 10, 0.05);
 }
 
 /* Per DESIGN.md §5: prospect rows fade in staggered (40ms apart) on first
