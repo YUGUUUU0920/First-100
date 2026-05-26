@@ -5,25 +5,29 @@
  * authors. Distinct from the editor-written 派早报 stuff we DON'T want.
  *
  * Endpoint:
- *   GET https://sspai.com/api/v1/article/index/page/get
+ *   GET https://sspai.com/api/v1/article/tag/page/get
  *   ?limit=N&offset=0&created_at=0&tag=<标签>
  *
- * Tags worth scanning for First 100's audience:
- *   开发 / 工具 / 效率 / 创业 / AI / 自动化 / 独立开发
- * sspai surfaces tags by Chinese name (URL-encoded), so we keep them as
- * full Chinese strings rather than slugs.
+ * IMPORTANT: it MUST be the `tag/page/get` endpoint, not `index/page/get`.
+ * `index` returns the global homepage feed and silently IGNORES ?tag=, so
+ * every tag used to return the identical articles (the tag picker was
+ * cosmetic). `tag/page/get` actually filters. Verified live 2026-05-26.
+ *
+ * sspai surfaces tags by Chinese name (URL-encoded). Only the tags below are
+ * recognized — the old set's 开发 / 创业 / 独立开发 all return [] on sspai, so
+ * they were dead. Replaced with dev/maker-adjacent tags probed live.
  */
 
-const SSPAI_API = "https://sspai.com/api/v1/article/index/page/get";
+const SSPAI_API = "https://sspai.com/api/v1/article/tag/page/get";
 
 export const SSPAI_TAGS = {
-  开发: "开发",
+  AI: "AI",
   工具: "工具",
   效率: "效率",
-  创业: "创业",
-  AI: "AI",
   自动化: "自动化",
-  独立开发: "独立开发",
+  编程: "编程",
+  程序员: "程序员",
+  设计: "设计",
 } as const;
 
 export type SspaiTag = keyof typeof SSPAI_TAGS;

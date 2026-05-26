@@ -47,7 +47,7 @@ const INPUT_LABEL: Record<Source, string> = {
 const INPUT_HELP: Record<Source, string> = {
   v2ex: "节点 = V2EX 网址 v2ex.com/go/ 后面那段（比如「分享创造」是 create）。每次扫描会自动连你选的节点 + 几个高流量 indie 节点（含「问与答」）一起扫，命中更多。",
   juejin: "掘金分 AI / 后端 / 前端 三类。每次扫描会把 3 类全扫一遍，你选哪个只决定建议默认值。",
-  sspai: "少数派矩阵区的标签，直接填中文，比如「开发」「AI」「创业」。",
+  sspai: "少数派矩阵区的标签，直接填中文，比如「AI」「效率」「编程」「设计」。",
   "github-cn": "daily = 今天最热 · weekly = 本周最热 · monthly = 本月最热。",
 };
 
@@ -72,7 +72,7 @@ const SUGGESTIONS: Record<Source, readonly { slug: string; label: string }[]> = 
     { slug: "backend", label: "后端" },
     { slug: "frontend", label: "前端" },
   ],
-  sspai: ["开发", "工具", "效率", "创业", "AI", "自动化", "独立开发"].map((s) => ({
+  sspai: ["AI", "工具", "效率", "自动化", "编程", "程序员", "设计"].map((s) => ({
     slug: s,
     label: s,
   })),
