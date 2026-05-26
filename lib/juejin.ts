@@ -19,10 +19,15 @@
 const JUEJIN_API =
   "https://api.juejin.cn/recommend_api/v1/article/recommend_cate_feed";
 
+// Category ids verified live against juejin's tag_api/v1/query_category_list
+// on 2026-05-26. Two were wrong:
+//   - ai was 6809637776263217160 — that's actually 代码人生 (career), not 人工智能.
+//     juejin's AI scans were silently pulling career posts.
+//   - frontend was 6809637767539130382 — stale, returns data:null. Real id below.
 export const JUEJIN_CATEGORIES = {
-  ai: { id: "6809637776263217160", label: "AI" },
+  ai: { id: "6809637773935378440", label: "AI" },
   backend: { id: "6809637769959178254", label: "后端" },
-  frontend: { id: "6809637767539130382", label: "前端" },
+  frontend: { id: "6809637767543259144", label: "前端" },
 } as const;
 
 export type JuejinCategory = keyof typeof JUEJIN_CATEGORIES;
