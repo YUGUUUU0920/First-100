@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "check-sources": "bun scripts/check-sources.ts",
     "smoke": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/smoke.ts",
     "eval": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; bun scripts/eval-relevance.ts"
   },
