@@ -219,24 +219,48 @@ function DashboardHeader({
  * product. Lays out the 3-step loop in plain Chinese so first-time users
  * know which form to use first.
  */
+const ONBOARDING_STEPS = [
+  {
+    n: 1,
+    title: "扫一个社区",
+    body: "选 V2EX / 掘金 / 少数派 / GitHub 中文，点「扫一次」。约 15 秒，AI 找出真的在讨论你产品相关问题的人。",
+  },
+  {
+    n: 2,
+    title: "看 AI 找到的人",
+    body: "往下滚，每个潜在用户都配好了一句中文破冰话术 —— 你不用自己想开场白。",
+  },
+  {
+    n: 3,
+    title: "复制 → 回帖 → 标记",
+    body: "点「复制 + 去回帖 ↗」，在原帖底下回复，回来点「已发送」。就这样。",
+  },
+] as const;
+
+/**
+ * First-run onboarding — shown when the user has 0 prospects on this product.
+ * Three numbered step cards (desktop: 3 columns, mobile: stacked) so a
+ * first-time user grasps the loop at a glance instead of reading a paragraph.
+ */
 function OnboardingStrip() {
   return (
-    <div className="mt-32 px-24 py-20 bg-accent/[0.06] border border-accent/30 rounded-md">
-      <p className="text-sub text-fg font-semibold">第一次用？三步走</p>
-      <ol className="mt-12 space-y-8 text-sub text-fg-muted list-decimal pl-20 marker:text-accent marker:font-semibold">
-        <li>
-          下面"扫社区找潜在用户" → 选个社区（V2EX / 掘金 / 少数派 / GitHub 中文）→ 点"扫一次"。
-          约 15 秒，AI 会找出真的在讨论你产品相关问题的人。
-        </li>
-        <li>
-          往下滚看 AI 找到的潜在用户列表。每个都带一句已经写好的中文破冰话术。
-        </li>
-        <li>
-          点"复制 + 去回帖 ↗" → 在原帖底下回复 → 回来点"已发送"按钮。
-          就这样，没了。
-        </li>
+    <section className="mt-32" aria-label="新手引导：三步拉到第一个用户">
+      <h2 className="text-h2 font-semibold text-fg">第一次用？3 步拉到第一个用户</h2>
+      <ol className="mt-20 grid gap-16 sm:grid-cols-3">
+        {ONBOARDING_STEPS.map((step) => (
+          <li key={step.n} className="card-soft rounded-md p-20">
+            <span
+              aria-hidden="true"
+              className="flex h-32 w-32 items-center justify-center rounded-full bg-accent text-accent-fg text-sub font-bold tabular-nums"
+            >
+              {step.n}
+            </span>
+            <h3 className="mt-16 text-body font-semibold text-fg">{step.title}</h3>
+            <p className="mt-8 text-sub text-fg-muted">{step.body}</p>
+          </li>
+        ))}
       </ol>
-    </div>
+    </section>
   );
 }
 
