@@ -176,16 +176,35 @@ export async function POST(request: NextRequest) {
             "invalid_category"
           );
         }
-        const result = await fetchJuejinFeed(cat);
-        posts = result.articles.map((a) => ({
-          title: a.title,
-          body: a.brief,
-          url: a.url,
-          author_handle: a.author_handle,
-          age_days: ageDays(a.ctime),
-          score: a.digg_count,
-          reply_count: a.comment_count,
-        }));
+        // Juejin has only 3 categories — scan all of them in parallel (deduped)
+        // so one click covers the whole source. Same low-surface fix as V2EX
+        // multi-node: 1 category (~20 posts) → ~60 across ai/backend/frontend.
+        const allCats = Object.keys(JUEJIN_CATEGORIES) as JuejinCategory[];
+        const settled = await Promise.allSettled(allCats.map((c) => fetchJuejinFeed(c)));
+        const seen = new Set<string>();
+        posts = [];
+        for (const r of settled) {
+          if (r.status !== "fulfilled") continue;
+          for (const a of r.value.articles) {
+            if (seen.has(a.url)) continue;
+            seen.add(a.url);
+            posts.push({
+              title: a.title,
+              body: a.brief,
+              url: a.url,
+              author_handle: a.author_handle,
+              age_days: ageDays(a.ctime),
+              score: a.digg_count,
+              reply_count: a.comment_count,
+            });
+          }
+        }
+        if (posts.length === 0) {
+          const firstRejection = settled.find((r) => r.status === "rejected");
+          if (firstRejection && firstRejection.status === "rejected") {
+            throw firstRejection.reason;
+          }
+        }
         break;
       }
       case "sspai": {
