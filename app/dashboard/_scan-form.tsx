@@ -45,7 +45,7 @@ const INPUT_LABEL: Record<Source, string> = {
 
 // Helper sentence beneath the label — what the input means in plain Chinese.
 const INPUT_HELP: Record<Source, string> = {
-  v2ex: "节点 = V2EX 网址 v2ex.com/go/ 后面那段。比如「分享创造」节点的 URL 是 v2ex.com/go/create，就填 create。",
+  v2ex: "节点 = V2EX 网址 v2ex.com/go/ 后面那段（比如「分享创造」是 create）。每次扫描会自动连你选的节点 + 几个高流量 indie 节点（含「问与答」）一起扫，命中更多。",
   juejin: "掘金把内容分成 AI / 后端 / 前端 三类，填一个英文 key。",
   sspai: "少数派矩阵区的标签，直接填中文，比如「开发」「AI」「创业」。",
   "github-cn": "daily = 今天最热 · weekly = 本周最热 · monthly = 本月最热。",
@@ -152,8 +152,8 @@ export function ScanForm({ productId, firstTime = false }: ScanFormProps) {
     <form onSubmit={onSubmit} className="rule pt-32 mt-48">
       <h2 className="text-h2 font-semibold text-fg">扫社区找潜在用户</h2>
       <p className="mt-12 text-sub text-fg-muted">
-        从中文社区抓最新 20 帖 → AI 挑出真的在讨论你产品相关问题的人 → 给每个写一句中文破冰话术。
-        大约 15 秒。
+        抓一批最新帖 → AI 挑出真的在讨论你产品相关问题的人 → 给每个写一句中文破冰话术。
+        大约 15-20 秒。
       </p>
 
       {/* Source picker */}
