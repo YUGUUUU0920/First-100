@@ -36,6 +36,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 ### P2 — quality-of-life
 
 - [ ] **Reintroduce daily scan limit + idempotency window** when first non-founder user signs up. CEO plan §cost & abuse bounds.
+- [ ] **Juejin `frontend` category fetch fails** ("juejin 响应 data 不是数组", reproduced live 2026-05-25). Likely a stale category id (`6809637767539130382`) or a changed juejin response shape — ai/backend work fine. Currently mitigated: multi-category scan (allSettled) drops frontend and still returns ai+backend (~40 posts), so no user-facing error. Fix needs the current juejin 前端 recommend category id (browse juejin API). Low urgency — founder mostly uses V2EX.
 - [ ] **Dedupe outreach_events on (outreach_id, status).** Currently double-clicking "已发送" inserts 2 rows → weekly stats inflate. UI disables button on event reach, but races possible. Either DB unique constraint + ON CONFLICT, or pre-insert SELECT.
 
 ### P3 — nice to have
