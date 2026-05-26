@@ -116,10 +116,19 @@ function OutreachBlock({
   sourceUrl: string;
 }) {
   if (!outreach) {
+    // No draft yet (e.g. an older scan before outreach generation, or one that
+    // got skipped). Don't dead-end — offer the same regenerate path as the
+    // ai_failed case. regenerateOutreach upserts on prospect_id, so it creates
+    // the outreach row from scratch here.
     return (
-      <p className="mt-16 text-sub text-fg-quiet">
-        没有 outreach（这个 prospect 是旧扫描留下的）
-      </p>
+      <div className="mt-16 px-16 py-12 border border-fg/15 rounded-md bg-fg/[0.03]">
+        <p className="text-sub text-fg-quiet">
+          这个潜在用户还没有破冰话术（旧扫描留下的）。点下面让 AI 生成一条。
+        </p>
+        <div className="mt-12">
+          <RegenerateOnly prospectId={prospectId} />
+        </div>
+      </div>
     );
   }
   if (outreach.status === "ai_failed") {
