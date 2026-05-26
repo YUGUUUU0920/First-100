@@ -230,8 +230,11 @@ export async function POST(request: NextRequest) {
         // often leaves 0 matches → "扫了个寂寞". Widening to ~50-60 posts across
         // sibling indie nodes lifts the hit rate ~3x. Capped at MAX_V2EX_POSTS
         // to bound Haiku cost.
-        const INDIE_DEFAULT_NODES = ["create", "ideas", "sidehustle"];
-        const MAX_V2EX_POSTS = 60;
+        // create/ideas/sidehustle/share = maker activity; qna (问与答) is where
+        // people ASK for help — the highest-signal node for "someone who needs
+        // what you built" (vs maker nodes full of "我做了个 X" launch posts).
+        const INDIE_DEFAULT_NODES = ["create", "ideas", "sidehustle", "share", "qna"];
+        const MAX_V2EX_POSTS = 70;
         const nodesToScan = Array.from(new Set([node, ...INDIE_DEFAULT_NODES]));
         const settled = await Promise.allSettled(
           nodesToScan.map((n) => fetchNodeTopics(n))
@@ -354,6 +357,19 @@ export async function POST(request: NextRequest) {
       ai_relevance_score: outcome.score,
       ai_filter_reason: `[${outcome.prompt_version}] ${outcome.reason}`,
     });
+  }
+
+  // Cap: keep only the top-scored prospects per scan. Widening the scan (more
+  // nodes → ~70 posts) is cheap on the Haiku filter, but each kept prospect
+  // triggers a Sonnet generate + Haiku critique — the slow/expensive part. If
+  // a scan happens to clear many, generating drafts for all of them risks the
+  // 60s function timeout + Anthropic rate limits. Cap the count to the best N;
+  // the weakest matches (which the founder is least likely to act on) are
+  // dropped. Common case (few clear) is unaffected — this is a safety ceiling.
+  const TOP_PROSPECTS_PER_SCAN = 15;
+  prospectRows.sort((a, b) => b.ai_relevance_score - a.ai_relevance_score);
+  if (prospectRows.length > TOP_PROSPECTS_PER_SCAN) {
+    prospectRows.length = TOP_PROSPECTS_PER_SCAN;
   }
 
   // 7. Insert prospects (one batch). Need IDs back for outreach generation.
