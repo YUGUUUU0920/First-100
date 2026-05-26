@@ -269,8 +269,10 @@ export function ScanForm({ productId, firstTime = false }: ScanFormProps) {
           </p>
           {result.scanned && result.kept === 0 && !result.idempotent && (
             <p className="mt-8 text-meta text-fg-quiet">
-              这次没扫出匹配的。换个节点再来一次？或者产品描述写得太泛，AI 没法判断相关性 ——
-              到 <a href="/products/new" className="underline-offset-4 hover:underline hover:text-fg">/products/new</a> 改一下。
+              这次没扫出匹配的（已经扫了你选的 + 几个热门 indie 节点）。试试换个源（掘金 / 少数派 / GitHub 中文），
+              或者产品描述太泛 AI 没法判断 —— 到{" "}
+              <a href="/products/new" className="underline-offset-4 hover:underline hover:text-fg">新建产品</a>{" "}
+              把描述写具体点。
             </p>
           )}
         </div>
