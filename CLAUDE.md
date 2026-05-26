@@ -16,10 +16,12 @@
 ## 测一下整套 pipeline
 
 ```bash
-bun run smoke
+bun run smoke           # AI 管线：V2EX → Haiku 过滤 → Sonnet 生成 + critique → 海报。约 $0.02。改 prompt 后必跑。
+bun run check-sources   # 4 个数据源 live 健康（免费、无 AI 调用）。改 lib/{v2ex,juejin,sspai,github-trending} 或扫描"扫了个寂寞"时跑。
+bun test                # 纯函数回归（特征向量 / LLM 解析 / 周报算 / 解析器），59 个用例。
 ```
 
-5 个 check：V2EX → Haiku 过滤 → Sonnet 生成 + critique → 海报渲染。每跑一次约 $0.02。改 prompt 后必跑。
+`smoke` 测 AI 管线对不对。`check-sources` 测**数据源 API 契约有没有静默漂移** —— 这类 bug fixture 单测抓不到（2026-05 连撞 3 个：掘金分类 id 失效、掘金 ai 扫成"代码人生"、sspai 端点不按标签过滤）。它断言每个掘金分类 / sspai 标签都返回内容，且 sspai 不同标签返回不同文章。**任何"扫描结果不对/为空"先跑 check-sources。**
 
 ---
 
