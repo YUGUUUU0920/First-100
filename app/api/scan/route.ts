@@ -224,17 +224,46 @@ export async function POST(request: NextRequest) {
         break;
       }
       default: {
-        // v2ex
-        const topics = (await fetchNodeTopics(node)).topics;
-        posts = topics.map((t) => ({
-          title: t.title,
-          body: t.content,
-          url: t.url,
-          author_handle: t.member.username,
-          age_days: ageDays(t.created),
-          score: null,
-          reply_count: t.replies,
-        }));
+        // v2ex — scan the picked node PLUS a few high-traffic indie nodes in
+        // parallel, deduped by URL. A single node returns only ~20 latest
+        // topics (V2EX cap), so for a niche product the strict relevance filter
+        // often leaves 0 matches → "扫了个寂寞". Widening to ~50-60 posts across
+        // sibling indie nodes lifts the hit rate ~3x. Capped at MAX_V2EX_POSTS
+        // to bound Haiku cost.
+        const INDIE_DEFAULT_NODES = ["create", "ideas", "sidehustle"];
+        const MAX_V2EX_POSTS = 60;
+        const nodesToScan = Array.from(new Set([node, ...INDIE_DEFAULT_NODES]));
+        const settled = await Promise.allSettled(
+          nodesToScan.map((n) => fetchNodeTopics(n))
+        );
+        const seen = new Set<string>();
+        posts = [];
+        for (const r of settled) {
+          if (r.status !== "fulfilled") continue;
+          for (const t of r.value.topics) {
+            if (seen.has(t.url)) continue;
+            seen.add(t.url);
+            posts.push({
+              title: t.title,
+              body: t.content,
+              url: t.url,
+              author_handle: t.member.username,
+              age_days: ageDays(t.created),
+              score: null,
+              reply_count: t.replies,
+            });
+          }
+        }
+        posts = posts.slice(0, MAX_V2EX_POSTS);
+        // If every node failed (network down, all invalid), surface the first
+        // real error so the catch block returns the right status. When only
+        // some nodes fail, the survivors still give the user results.
+        if (posts.length === 0) {
+          const firstRejection = settled.find((r) => r.status === "rejected");
+          if (firstRejection && firstRejection.status === "rejected") {
+            throw firstRejection.reason;
+          }
+        }
       }
     }
   } catch (err) {
