@@ -45,22 +45,33 @@ for (const cat of Object.keys(JUEJIN_CATEGORIES) as JuejinCategory[]) {
   }
 }
 
-// ── Sspai: tags must return content AND actually differ ─────────────────
-// (Catches the endpoint-ignores-tag bug — if two distinct tags return the
-//  identical first article, filtering is broken.)
+// ── Sspai: EVERY configured tag must return content, AND filtering must
+//    actually differ. sspai tag strings are exactly what drifted (3 of the old
+//    set silently went dead), so check the whole configured set, not a sample.
 try {
-  const tags = Object.keys(SSPAI_TAGS).slice(0, 2) as SspaiTag[];
-  const [a, b] = await Promise.all(tags.map((t) => fetchSspaiMatrix(t, 10)));
-  const aHas = (a?.articles.length ?? 0) >= 1;
-  const bHas = (b?.articles.length ?? 0) >= 1;
-  check(`sspai ${tags[0]}`, aHas, `${a?.articles.length ?? 0} articles`);
-  check(`sspai ${tags[1]}`, bHas, `${b?.articles.length ?? 0} articles`);
-  const differ =
-    aHas && bHas && a!.articles[0]!.id !== b!.articles[0]!.id;
+  const tags = Object.keys(SSPAI_TAGS) as SspaiTag[];
+  const results = await Promise.all(
+    tags.map((t) =>
+      fetchSspaiMatrix(t, 10).then(
+        (r) => ({ t, n: r.articles.length, firstId: r.articles[0]?.id ?? null }),
+        (e) => ({ t, n: -1, firstId: null, err: String(e).slice(0, 60) })
+      )
+    )
+  );
+  for (const r of results) {
+    check(`sspai ${r.t}`, r.n >= 1, r.n < 0 ? `error: ${(r as { err?: string }).err}` : `${r.n} articles`);
+  }
+  // Filtering sanity: the configured tags must not all collapse to one feed.
+  // If every tag returns the same first article, the ?tag= filter is broken
+  // (the index-endpoint regression). Distinct ids across tags = filtering works.
+  const ids = results.filter((r) => r.firstId != null).map((r) => r.firstId);
+  const distinct = new Set(ids).size;
   check(
     "sspai tag filtering",
-    differ,
-    differ ? "two tags return different articles" : "TWO TAGS RETURN SAME ARTICLE — filter broken"
+    ids.length >= 2 && distinct >= 2,
+    distinct >= 2
+      ? `${distinct} distinct first-articles across ${ids.length} tags`
+      : "ALL TAGS RETURN SAME ARTICLE — filter broken"
   );
 } catch (e) {
   check("sspai", false, String(e).slice(0, 80));
