@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { originGuard } from "@/lib/api-guards";
 import { getClaude, HAIKU_MODEL, HAIKU_MAX_TOKENS } from "@/lib/claude";
 
 /**
@@ -12,7 +14,13 @@ import { getClaude, HAIKU_MODEL, HAIKU_MAX_TOKENS } from "@/lib/claude";
  * Off in dev because Next.js dev doesn't pass non-NEXT_PUBLIC_ env to Edge.
  */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // CSRF defense — same guard as /api/scan + /api/poster. This is the third
+  // Claude-calling route; without it a malicious page could trigger a logged-in
+  // user's browser to ping it cross-origin and burn (tiny) Haiku budget.
+  const csrfBlock = originGuard(request);
+  if (csrfBlock) return csrfBlock;
+
   const supabase = await createClient();
   const {
     data: { user },
