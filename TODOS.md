@@ -62,6 +62,8 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 
 (Most recent at top. Trim manually when this section grows past 30 items.)
 
+- 2026-05-27: **/loop tick — login rate limit (CSO #6)** — `sendLoginCode` now gates per-email (5/15min) + per-IP (20/10min) BEFORE the Supabase/Resend dispatch, so a flood can't drain Resend quota or email-bomb a victim address. Reuses `inMemoryRateLimit`. Closes the last engineering-fixable High item from the 2026-05-12 /cso audit (remaining items are founder-personal or the deferred RLS/Upstash >50-user work).
+
 - 2026-05-22~25: **/loop autonomous hardening (ticks 1-15)** — shipped without founder in-loop:
   - **Data moat**: outreach feature vector 17-dim capture at mark-time (`lib/feature-extractor.ts`, tick 2); caught + fixed a real `has_ps` CJK-regex bug via tests (tick 11) — Chinese 顺带/对了 mentions were silently recorded false.
   - **Security (/cso)**: CSRF Origin guard on /api/scan + /api/poster/generate (`lib/api-guards.ts`); DB-counted rate limit on /api/scan (10/hr); in-memory rate limit on /api/poster (20/hr); prompt-injection `<<USER_INPUT>>` boundaries in all 3 Claude prompts; baseline security headers (X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy) via next.config.

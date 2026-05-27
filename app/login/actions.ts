@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { inMemoryRateLimit } from "@/lib/api-guards";
 import { z } from "zod";
 
 const emailSchema = z
@@ -55,6 +57,20 @@ function getSiteUrl(): string {
 }
 
 /**
+ * Best-effort client IP for rate-limit keying. On Vercel the real client is the
+ * first hop in `x-forwarded-for`; the rest are proxies. Returns null locally
+ * (no forwarding header) — callers must treat "no IP" as "skip the per-IP gate"
+ * rather than blocking, so dev / server-to-server calls aren't penalised.
+ */
+async function getClientIp(): Promise<string | null> {
+  const h = await headers();
+  const xff = h.get("x-forwarded-for");
+  const first = xff?.split(",")[0]?.trim();
+  if (first) return first;
+  return h.get("x-real-ip");
+}
+
+/**
  * Step 1: ask Supabase to send a one-time-password (OTP) email.
  *
  * Why we don't rely on the magic link alone:
@@ -87,6 +103,31 @@ export async function sendLoginCode(
     };
   }
   const email = parsedEmail.data;
+
+  // CSO audit #6 (login lockout): rate-limit BEFORE the Supabase/Resend
+  // dispatch so a flood never sends a single email. Two windows:
+  //   per-email — caps how often any one address can be bombed (a victim
+  //               can't be mailed more than 5×/15min regardless of attacker)
+  //   per-IP    — caps a sprayer hitting many distinct addresses from one host
+  // In-memory + per serverless instance (see lib/api-guards limitations) —
+  // defense-in-depth layered on Supabase's own OTP throttle, not a replacement.
+  const perEmail = inMemoryRateLimit(`login:email:${email.toLowerCase()}`, 5, 15 * 60_000);
+  if (!perEmail.ok) {
+    return {
+      status: "error",
+      message: `验证码请求太频繁，约 ${Math.ceil(perEmail.retryAfterSec / 60)} 分钟后再试。`,
+    };
+  }
+  const ip = await getClientIp();
+  if (ip) {
+    const perIp = inMemoryRateLimit(`login:ip:${ip}`, 20, 10 * 60_000);
+    if (!perIp.ok) {
+      return {
+        status: "error",
+        message: `请求太频繁，约 ${Math.ceil(perIp.retryAfterSec / 60)} 分钟后再试。`,
+      };
+    }
+  }
 
   const rawNext = formData.get("next");
   const nextParsed = typeof rawNext === "string" ? nextSchema.safeParse(rawNext) : null;
