@@ -2,7 +2,7 @@
 
 AI 帮中文 indie hacker 找前 100 个用户。
 
-输入产品描述 → 5 分钟内 AI 扫 V2EX + 你粘即刻帖子 → 个性化中文破冰 → 你按发送 → 每周战绩海报。
+输入产品描述 → 5 分钟内 AI 扫 V2EX·掘金·少数派·GitHub 中文榜（+ 你粘即刻/小红书）→ 个性化中文破冰 → 你按发送 → 每周战绩海报。
 
 - 📄 设计：`DESIGN.md`（视觉 + interaction states）
 - 📐 CEO plan：`~/.gstack/projects/YUGUUUU0920-First-100/ceo-plans/2026-04-22-first-100-chinese-pivot.md`
@@ -18,7 +18,7 @@ AI 帮中文 indie hacker 找前 100 个用户。
 ## 技术栈
 
 - **Next.js 15**（App Router） + TypeScript strict + Tailwind 3
-- **Supabase**（Postgres + Auth + Storage） — magic link 登录走 Resend SMTP
+- **Supabase**（Postgres + Auth + Storage） — 6 位验证码（OTP）登录为主 + magic link 兜底，走 Resend SMTP（OTP 避开国内邮箱吞链接）
 - **Anthropic Claude SDK** — Haiku 4.5 过滤 / critique，Sonnet 4.6 outreach 生成
 - **@vercel/og** — 1080×1350 周报海报（Satori JSX → PNG）
 - **V2EX read API** — 公开节点 list 接口，无 auth
@@ -57,7 +57,7 @@ app/
   auth/                    Supabase magic link callback / confirm / signout action
   dashboard/               主界面：本周 + 扫描表单 + 即刻粘贴 + prospect 列表
   products/new/            创建产品表单
-  login/                   Magic link 登录
+  login/                   6 位 OTP 验证码登录（+ magic link 兜底）
   globals.css              DESIGN.md tokens + skip-link + tabular-nums utilities
   layout.tsx / icon.tsx / opengraph-image.tsx   meta + 品牌资产
   not-found.tsx / error.tsx                      branded 404 + 错误边界
@@ -75,6 +75,8 @@ scripts/smoke.ts           AI pipeline 端到端 smoke test（脱离 server / br
 
 ```bash
 bun run smoke            # 5 check：V2EX → Haiku → Sonnet → 海报 (~$0.02)
+bun run check-sources    # 4 个数据源 live 健康（免费，无 AI）— 扫描结果不对先跑这个
+bun test                 # 59 纯函数回归（特征向量 / LLM 解析 / 周报算 / 解析器）
 bun run eval             # Haiku 过滤 precision/recall vs docs/eval/*.md 标签
 bun x tsc --noEmit       # typecheck
 bun run build            # full Next.js build
