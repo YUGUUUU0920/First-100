@@ -28,6 +28,11 @@ export function KeyboardNav() {
         return;
       }
 
+      // While the help modal is open it's aria-modal — trap all other shortcuts
+      // so j/k/s/⌘+Enter don't leak through and move focus / ship in the
+      // background behind the overlay. Only Esc (handled above) works.
+      if (showHelp) return;
+
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName.toLowerCase();
       const isTextInput =
