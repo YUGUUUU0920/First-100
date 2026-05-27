@@ -46,7 +46,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 - [ ] **Dark mode.** DESIGN.md §1 scoped this to v0.5.
 - [ ] **`/admin` query #5 (Resend deliverability)** — see P1.
 - [ ] **More gracefully handle Sonnet runaway > OUTREACH_HARD_CAP.** Currently marked ai_failed. Could try a "trim and re-critique" pass.
-- [ ] **Flesh out /pricing and /blog.** Both are one-sentence pages — visitor bounce risk. /pricing needs 3-feature comparison + CTA. /blog needs at least one real post (or hide the link until ready). Found by /qa on prod 2026-05-12 as ISSUE-003.
+- [ ] **Flesh out /pricing and /blog content.** ~~Both are one-sentence dead-ends.~~ **CTA added 2026-05-27** — both now carry the hero's 免费内测 → /login button so a visitor from the landing nav converts instead of bouncing (the dead-end half of ISSUE-003 is closed). Remaining is *content*, which is founder copy: /pricing wants a 3-feature comparison; /blog wants at least one real cold-start post. Pricing substance untouched by the loop (business-model boundary).
 
 ## Deferred
 
