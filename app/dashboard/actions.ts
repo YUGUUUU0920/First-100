@@ -53,6 +53,28 @@ export async function markOutreach(
     return { ok: false, error: "outreach not found" };
   }
 
+  // Idempotency — marking the SAME status twice (double-click, or re-marking on
+  // a later dashboard visit) must not insert a duplicate event. weekly-stats and
+  // the /admin funnel COUNT outreach_events rows, so a dup silently inflates the
+  // core success metric (当周发送后被回复数) and the weekly poster. Check for an
+  // existing (outreach_id, status) row and no-op if present. `.limit(1)` keeps
+  // maybeSingle() safe even if past double-clicks already left dups. This closes
+  // the realistic vectors (sequential clicks, re-marks); a DB unique constraint
+  // would also close the rare truly-concurrent race — deferred to the >50-user
+  // migration batch (TODOS P2). Different statuses (sent→replied→converted) are
+  // distinct rows and intentionally NOT deduped against each other.
+  const { data: existingEvent } = await admin
+    .from("outreach_events")
+    .select("id")
+    .eq("outreach_id", outreachId)
+    .eq("status", status)
+    .limit(1)
+    .maybeSingle();
+  if (existingEvent) {
+    revalidatePath("/dashboard");
+    return { ok: true };
+  }
+
   // outreach→prospect is many-to-one; Supabase may type the join as array or
   // object depending on inference — normalize to a single row.
   const prospectJoin = Array.isArray(o.prospects) ? o.prospects[0] : o.prospects;

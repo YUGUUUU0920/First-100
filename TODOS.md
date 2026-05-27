@@ -38,7 +38,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 - [ ] **Reintroduce daily scan limit + idempotency window** when first non-founder user signs up. CEO plan §cost & abuse bounds.
 - [x] ~~**Sspai tag filtering doesn't work**~~ — **FIXED 2026-05-26**. Root cause: wrong endpoint — `article/index/page/get` (global homepage feed, ignores ?tag=) instead of `article/tag/page/get` (actually filters). Also the old tag set (开发/创业/独立开发) returned [] — sspai doesn't recognize those strings. Fixed endpoint + replaced with valid probed tags (AI/工具/效率/自动化/编程/程序员/设计). Verified live: tags now return distinct articles.
 - [x] ~~**Juejin `frontend` category fetch fails**~~ — **FIXED 2026-05-26**. Pulled juejin's live category list (tag_api/v1/query_category_list) and found TWO wrong ids: frontend `6809637767539130382` was stale (returns data:null) → real id `6809637767543259144`; AND `ai` was `6809637776263217160` which is actually 代码人生 (career), not 人工智能 — so juejin AI scans were silently pulling career posts → real AI id `6809637773935378440`. Both corrected + verified live (all 3 categories return relevant articles).
-- [ ] **Dedupe outreach_events on (outreach_id, status).** Currently double-clicking "已发送" inserts 2 rows → weekly stats inflate. UI disables button on event reach, but races possible. Either DB unique constraint + ON CONFLICT, or pre-insert SELECT.
+- [x] ~~**Dedupe outreach_events on (outreach_id, status).**~~ — **FIXED 2026-05-27** (app/dashboard/actions.ts). `markOutreach` now does a pre-insert `.limit(1).maybeSingle()` check on (outreach_id, status) and no-ops if a row exists → double-clicks / re-marks no longer inflate weekly stats or the /admin funnel. Closes the realistic sequential vectors; the rare truly-concurrent race still wants a DB unique partial index — deferred to the >50-user migration batch (needs founder to apply + dedup any pre-existing rows first).
 
 ### P3 — nice to have
 
@@ -62,6 +62,7 @@ Long-running backlog. Items above the line are work that should ship soon. Items
 
 (Most recent at top. Trim manually when this section grows past 30 items.)
 
+- 2026-05-27: **/loop tick — outreach_events dedupe (core-metric integrity)** — `markOutreach` no longer blind-inserts; it checks for an existing (outreach_id, status) row first and no-ops. Double-clicking 已发送 / re-marking used to insert duplicate rows, inflating the weekly "sent/replied" counts (the product's single success metric) + the /admin funnel + the weekly poster. Code-only, no migration. DB unique-constraint hardening for the concurrent race deferred to >50-user batch.
 - 2026-05-27: **/loop tick — login rate limit (CSO #6)** — `sendLoginCode` now gates per-email (5/15min) + per-IP (20/10min) BEFORE the Supabase/Resend dispatch, so a flood can't drain Resend quota or email-bomb a victim address. Reuses `inMemoryRateLimit`. Closes the last engineering-fixable High item from the 2026-05-12 /cso audit (remaining items are founder-personal or the deferred RLS/Upstash >50-user work).
 
 - 2026-05-22~25: **/loop autonomous hardening (ticks 1-15)** — shipped without founder in-loop:
